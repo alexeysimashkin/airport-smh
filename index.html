@@ -234,161 +234,196 @@
     </div>
 
         <script>
-        const API = '/api/flights';
-        let flights = [];
+    const API = '/api/flights';
+    let flights = [];
 
-        // 🔥 ФУНКЦИЯ ПОЛУЧЕНИЯ САМАРСКОГО ВРЕМЕНИ (UTC+4)
-        function getSamaraTime() {
-            const now = new Date();
-            // Получаем UTC время и добавляем 4 часа
-            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-            return new Date(utc + (4 * 3600000)); // UTC+4 (Самара)
-        }
+    // 🔥 САМАРСКОЕ ВРЕМЯ ВСЕГДА UTC+4 (жёстко)
+    function getSamaraTime() {
+        const now = new Date();
+        // Берём UTC-время и добавляем ровно 4 часа
+        const utcHours = now.getUTCHours();
+        const utcMinutes = now.getUTCMinutes();
+        const utcSeconds = now.getUTCSeconds();
+        const utcDate = now.getUTCDate();
+        const utcMonth = now.getUTCMonth();
+        const utcFullYear = now.getUTCFullYear();
         
-        // Получить дату в формате YYYY-MM-DD по самарскому времени
-        function getSamaraDate() {
-            const samara = getSamaraTime();
-            const year = samara.getFullYear();
-            const month = String(samara.getMonth() + 1).padStart(2, '0');
-            const day = String(samara.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
+        // Добавляем 4 часа
+        let samaraHours = utcHours + 4;
+        let samaraDate = utcDate;
+        let samaraMonth = utcMonth;
+        let samaraFullYear = utcFullYear;
         
-        // Получить время в минутах от начала дня по самарскому времени
-        function getSamaraMinutes() {
-            const samara = getSamaraTime();
-            return samara.getHours() * 60 + samara.getMinutes();
-        }
-
-        async function load() {
-            try {
-                const r = await fetch(API);
-                const d = await r.json();
-                flights = d.flights || [];
-                updateStatuses();
-                render();
-            } catch(e) {
-                document.getElementById('board').innerHTML = 
-                    '<tr><td colspan="4" style="text-align:center;padding:40px;color:#ef4444;">⚠ Ошибка загрузки данных</td></tr>';
+        // Если перевалили за полночь
+        if (samaraHours >= 24) {
+            samaraHours -= 24;
+            samaraDate += 1;
+            
+            // Проверяем конец месяца
+            const daysInMonth = new Date(utcFullYear, utcMonth + 1, 0).getDate();
+            if (samaraDate > daysInMonth) {
+                samaraDate = 1;
+                samaraMonth += 1;
+                if (samaraMonth > 11) {
+                    samaraMonth = 0;
+                    samaraFullYear += 1;
+                }
             }
         }
+        
+        return {
+            hours: samaraHours,
+            minutes: utcMinutes,
+            seconds: utcSeconds,
+            date: samaraDate,
+            month: samaraMonth,
+            fullYear: samaraFullYear,
+            totalMinutes: samaraHours * 60 + utcMinutes
+        };
+    }
+    
+    function getSamaraDateString() {
+        const t = getSamaraTime();
+        const y = t.fullYear;
+        const m = String(t.month + 1).padStart(2, '0');
+        const d = String(t.date).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    
+    function getSamaraTimeString() {
+        const t = getSamaraTime();
+        const h = String(t.hours).padStart(2, '0');
+        const m = String(t.minutes).padStart(2, '0');
+        const s = String(t.seconds).padStart(2, '0');
+        return `${h}:${m}:${s}`;
+    }
+    
+    function getSamaraDateDisplay() {
+        const t = getSamaraTime();
+        const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 
+                       'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+        const weekdays = ['воскресенье', 'понедельник', 'вторник', 'среда', 
+                         'четверг', 'пятница', 'суббота'];
+        
+        // День недели по UTC+4
+        const utcDay = new Date(Date.UTC(t.fullYear, t.month, t.date)).getDay();
+        const localDay = (utcDay + Math.floor((t.hours) / 24)) % 7;
+        
+        return `${weekdays[utcDay]}, ${t.date} ${months[t.month]} ${t.fullYear} года`;
+    }
 
-        function timeToMin(t) {
-            if (!t) return 0;
-            const [h, m] = t.split(':').map(Number);
-            return h * 60 + m;
+    async function load() {
+        try {
+            const r = await fetch(API);
+            const d = await r.json();
+            flights = d.flights || [];
+            updateStatuses();
+            render();
+        } catch(e) {
+            document.getElementById('board').innerHTML = 
+                '<tr><td colspan="4" style="text-align:center;padding:40px;color:#ef4444;">⚠ Ошибка загрузки данных</td></tr>';
         }
+    }
 
-        function updateStatuses() {
-            const currentTime = getSamaraMinutes(); // САМАРСКОЕ ВРЕМЯ
-            const today = getSamaraDate(); // САМАРСКАЯ ДАТА
+    function timeToMin(t) {
+        if (!t) return 0;
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+    }
 
-            flights.forEach(f => {
-                if (!f.date || f.date !== today) {
-                    if (f.date < today) {
-                        f.status = 'departed';
-                        f.statusText = 'Вылетел';
-                    } else {
-                        f.status = 'scheduled';
-                        f.statusText = 'По расписанию';
-                    }
-                    return;
-                }
+    function updateStatuses() {
+        const samara = getSamaraTime();
+        const currentTime = samara.totalMinutes;
+        const today = getSamaraDateString();
 
-                const cis = timeToMin(f.checkInStart);
-                const cie = timeToMin(f.checkInEnd);
-                const bs = timeToMin(f.boardingStart);
-                const be = timeToMin(f.boardingEnd);
-                const dep = timeToMin(f.departureTime);
-
-                if (currentTime < cis) {
-                    f.status = 'scheduled';
-                    f.statusText = 'По расписанию';
-                } else if (currentTime >= cis && currentTime < cie) {
-                    f.status = 'check-in';
-                    f.statusText = 'Регистрация';
-                } else if (currentTime >= cie && currentTime < bs) {
-                    f.status = 'check-in-closed';
-                    f.statusText = 'Регистрация закончена';
-                } else if (currentTime >= bs && currentTime < be) {
-                    f.status = 'boarding';
-                    f.statusText = 'Посадка';
-                } else if (currentTime >= be && currentTime < dep) {
-                    f.status = 'boarding-closed';
-                    f.statusText = 'Посадка закончена';
-                } else if (currentTime >= dep) {
+        flights.forEach(f => {
+            if (!f.date || f.date !== today) {
+                if (f.date < today) {
                     f.status = 'departed';
                     f.statusText = 'Вылетел';
+                } else {
+                    f.status = 'scheduled';
+                    f.statusText = 'По расписанию';
                 }
-            });
-        }
-
-        function render() {
-            const today = getSamaraDate(); // САМАРСКАЯ ДАТА
-            const visible = flights
-                .filter(f => f.date >= today)
-                .sort((a, b) => (a.date + a.departureTime).localeCompare(b.date + b.departureTime));
-
-            const tbody = document.getElementById('board');
-
-            if (!visible.length) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-secondary);">Нет рейсов для отображения</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = visible.map(f => `
-                <tr>
-                    <td data-label="Время"><strong>${f.departureTime || '—'}</strong></td>
-                    <td data-label="Рейс">
-                        <span class="airline">${esc(f.airline)}</span><br>
-                        <span class="flight-num">${esc(f.flightNumber)}</span>
-                    </td>
-                    <td data-label="Направление">
-                        <span class="dest">${esc(f.destination)}</span>
-                        <span class="iata-code">${esc(f.iata)}</span>
-                    </td>
-                    <td data-label="Статус">
-                        <span class="badge status-${f.status}">${f.statusText}</span>
-                        ${f.checkInDesks && f.status === 'check-in' ? `<div class="info-row">Стойки: ${esc(f.checkInDesks)}</div>` : ''}
-                        ${f.gate && f.status === 'boarding' ? `<div class="info-row">Выход: ${esc(f.gate)}</div>` : ''}
-                    </td>
-                </tr>
-            `).join('');
+            const cis = timeToMin(f.checkInStart);
+            const cie = timeToMin(f.checkInEnd);
+            const bs = timeToMin(f.boardingStart);
+            const be = timeToMin(f.boardingEnd);
+            const dep = timeToMin(f.departureTime);
+
+            if (currentTime < cis) {
+                f.status = 'scheduled';
+                f.statusText = 'По расписанию';
+            } else if (currentTime >= cis && currentTime < cie) {
+                f.status = 'check-in';
+                f.statusText = 'Регистрация';
+            } else if (currentTime >= cie && currentTime < bs) {
+                f.status = 'check-in-closed';
+                f.statusText = 'Регистрация закончена';
+            } else if (currentTime >= bs && currentTime < be) {
+                f.status = 'boarding';
+                f.statusText = 'Посадка';
+            } else if (currentTime >= be && currentTime < dep) {
+                f.status = 'boarding-closed';
+                f.statusText = 'Посадка закончена';
+            } else if (currentTime >= dep) {
+                f.status = 'departed';
+                f.statusText = 'Вылетел';
+            }
+        });
+    }
+
+    function render() {
+        const today = getSamaraDateString();
+        const visible = flights
+            .filter(f => f.date >= today)
+            .sort((a, b) => (a.date + a.departureTime).localeCompare(b.date + b.departureTime));
+
+        const tbody = document.getElementById('board');
+
+        if (!visible.length) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-secondary);">Нет рейсов для отображения</td></tr>';
+            return;
         }
 
-        function esc(s) {
-            const d = document.createElement('div');
-            d.textContent = s || '';
-            return d.innerHTML;
-        }
+        tbody.innerHTML = visible.map(f => `
+            <tr>
+                <td data-label="Время"><strong>${f.departureTime || '—'}</strong></td>
+                <td data-label="Рейс">
+                    <span class="airline">${esc(f.airline)}</span><br>
+                    <span class="flight-num">${esc(f.flightNumber)}</span>
+                </td>
+                <td data-label="Направление">
+                    <span class="dest">${esc(f.destination)}</span>
+                    <span class="iata-code">${esc(f.iata)}</span>
+                </td>
+                <td data-label="Статус">
+                    <span class="badge status-${f.status}">${f.statusText}</span>
+                    ${f.checkInDesks && f.status === 'check-in' ? `<div class="info-row">Стойки: ${esc(f.checkInDesks)}</div>` : ''}
+                    ${f.gate && f.status === 'boarding' ? `<div class="info-row">Выход: ${esc(f.gate)}</div>` : ''}
+                </td>
+            </tr>
+        `).join('');
+    }
 
-        function updateClock() {
-            const samara = getSamaraTime(); // САМАРСКОЕ ВРЕМЯ
-            
-            // Часы
-            document.getElementById('clock').textContent = 
-                samara.toLocaleTimeString('ru-RU', { 
-                    hour: '2-digit', 
-                    minute: '2-digit', 
-                    second: '2-digit',
-                    timeZone: 'Europe/Samara' // На всякий случай указываем часовой пояс
-                });
-            
-            // Дата
-            document.getElementById('dateDisplay').textContent = 
-                samara.toLocaleDateString('ru-RU', { 
-                    weekday: 'long', 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric',
-                    timeZone: 'Europe/Samara'
-                });
-        }
+    function esc(s) {
+        const d = document.createElement('div');
+        d.textContent = s || '';
+        return d.innerHTML;
+    }
 
-        updateClock();
-        setInterval(updateClock, 1000);
-        load();
-        setInterval(load, 10000);
-    </script>
+    function updateClock() {
+        document.getElementById('clock').textContent = getSamaraTimeString() + ' (UTC+4)';
+        document.getElementById('dateDisplay').textContent = getSamaraDateDisplay();
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+    load();
+    setInterval(load, 10000);
+</script>
 </body>
 </html>
