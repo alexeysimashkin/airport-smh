@@ -231,9 +231,24 @@
         <div id="flightsList"><p style="color: var(--text-secondary);">Загрузка...</p></div>
     </div>
 
-    <script>
+        <script>
         const API = '/api/flights';
         let flights = [];
+
+        // 🔥 ФУНКЦИЯ ПОЛУЧЕНИЯ САМАРСКОГО ВРЕМЕНИ (UTC+4)
+        function getSamaraTime() {
+            const now = new Date();
+            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            return new Date(utc + (4 * 3600000)); // UTC+4 (Самара)
+        }
+        
+        function getSamaraDate() {
+            const samara = getSamaraTime();
+            const year = samara.getFullYear();
+            const month = String(samara.getMonth() + 1).padStart(2, '0');
+            const day = String(samara.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
 
         async function loadFlights() {
             try {
@@ -316,7 +331,8 @@
             document.getElementById('formTitle').textContent = '➕ Добавить рейс';
             document.getElementById('submitBtn').textContent = '➕ Добавить рейс';
             document.getElementById('cancelBtn').style.display = 'none';
-            document.getElementById('flightDate').value = new Date().toISOString().split('T')[0];
+            // Устанавливаем САМАРСКУЮ дату
+            document.getElementById('flightDate').value = getSamaraDate();
         }
 
         async function deleteFlight(id) {
@@ -378,7 +394,9 @@
             setTimeout(() => n.remove(), 3000);
         }
 
-        document.getElementById('flightDate').value = new Date().toISOString().split('T')[0];
+        // Устанавливаем САМАРСКУЮ дату при загрузке
+        document.getElementById('flightDate').value = getSamaraDate();
+        
         loadFlights();
         setInterval(loadFlights, 15000);
     </script>
