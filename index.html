@@ -233,9 +233,32 @@
         <a href="/admin.html" class="admin-link">🔧 Управление</a>
     </div>
 
-    <script>
+        <script>
         const API = '/api/flights';
         let flights = [];
+
+        // 🔥 ФУНКЦИЯ ПОЛУЧЕНИЯ САМАРСКОГО ВРЕМЕНИ (UTC+4)
+        function getSamaraTime() {
+            const now = new Date();
+            // Получаем UTC время и добавляем 4 часа
+            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            return new Date(utc + (4 * 3600000)); // UTC+4 (Самара)
+        }
+        
+        // Получить дату в формате YYYY-MM-DD по самарскому времени
+        function getSamaraDate() {
+            const samara = getSamaraTime();
+            const year = samara.getFullYear();
+            const month = String(samara.getMonth() + 1).padStart(2, '0');
+            const day = String(samara.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        // Получить время в минутах от начала дня по самарскому времени
+        function getSamaraMinutes() {
+            const samara = getSamaraTime();
+            return samara.getHours() * 60 + samara.getMinutes();
+        }
 
         async function load() {
             try {
@@ -257,9 +280,8 @@
         }
 
         function updateStatuses() {
-            const now = new Date();
-            const currentTime = now.getHours() * 60 + now.getMinutes();
-            const today = now.toISOString().split('T')[0];
+            const currentTime = getSamaraMinutes(); // САМАРСКОЕ ВРЕМЯ
+            const today = getSamaraDate(); // САМАРСКАЯ ДАТА
 
             flights.forEach(f => {
                 if (!f.date || f.date !== today) {
@@ -302,7 +324,7 @@
         }
 
         function render() {
-            const today = new Date().toISOString().split('T')[0];
+            const today = getSamaraDate(); // САМАРСКАЯ ДАТА
             const visible = flights
                 .filter(f => f.date >= today)
                 .sort((a, b) => (a.date + a.departureTime).localeCompare(b.date + b.departureTime));
@@ -341,11 +363,26 @@
         }
 
         function updateClock() {
-            const now = new Date();
+            const samara = getSamaraTime(); // САМАРСКОЕ ВРЕМЯ
+            
+            // Часы
             document.getElementById('clock').textContent = 
-                now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                samara.toLocaleTimeString('ru-RU', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit',
+                    timeZone: 'Europe/Samara' // На всякий случай указываем часовой пояс
+                });
+            
+            // Дата
             document.getElementById('dateDisplay').textContent = 
-                now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                samara.toLocaleDateString('ru-RU', { 
+                    weekday: 'long', 
+                    day: 'numeric', 
+                    month: 'long', 
+                    year: 'numeric',
+                    timeZone: 'Europe/Samara'
+                });
         }
 
         updateClock();
