@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление рейсами ✈ Аэропорт Симашкино (SMH) | Самара</title>
+    <style>
+        :root {
+            --bg-dark: #0f0a1a;
+            --bg-panel: #1a1129;
+            --accent: #a855f7;
+            --accent-light: #c084fc;
+            --accent-glow: #7c3aed;
+            --text-primary: #f3e8ff;
+            --text-secondary: #a78bfa;
+            --border: #2e1a4a;
+            --blue-accent: #8b5cf6;
+            --red-accent: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 40px;
+            background-image:
+                radial-gradient(ellipse at 30% 0%, rgba(168,85,247,0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 100%, rgba(192,132,252,0.05) 0%, transparent 50%);
+        }
+        h1 { color: var(--accent-light); margin-bottom: 10px; }
+        .nav { margin-bottom: 30px; }
+        .nav a {
+            color: var(--accent-light); text-decoration: none;
+            font-weight: 600; transition: all 0.3s;
+        }
+        .nav a:hover { text-shadow: 0 0 15px rgba(192,132,252,0.6); }
+        
+        .card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px; padding: 30px; margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(168,85,247,0.08);
+        }
+        h2 { color: var(--accent-light); margin-bottom: 20px; }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin-bottom: 20px;
+        }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        label {
+            font-size: 0.8rem; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--text-secondary); font-weight: 600;
+        }
+        input {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 10px 14px; border-radius: 8px; font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(168,85,247,0.3);
+        }
+        
+        .btn {
+            padding: 12px 24px; border: none; border-radius: 8px;
+            font-weight: 600; cursor: pointer; font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        .btn-save {
+            background: linear-gradient(135deg, var(--accent), var(--accent-glow));
+            color: white;
+            box-shadow: 0 4px 15px rgba(168,85,247,0.4);
+        }
+        .btn-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(168,85,247,0.6);
+        }
+        .btn-cancel {
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text-secondary); margin-left: 10px;
+        }
+        .btn-cancel:hover { border-color: var(--accent); color: var(--accent-light); }
+        
+        .flight-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 18px; background: var(--bg-dark);
+            border-radius: 8px; margin-bottom: 10px;
+            flex-wrap: wrap; gap: 12px;
+            border: 1px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .flight-item:hover {
+            border-color: var(--border);
+            box-shadow: 0 4px 15px rgba(168,85,247,0.1);
+        }
+        .flight-info { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+        .flight-detail { font-size: 0.9rem; color: var(--text-secondary); }
+        .flight-detail strong { color: var(--text-primary); }
+        
+        .btn-edit {
+            background: transparent; border: 1px solid var(--blue-accent);
+            color: var(--blue-accent); padding: 6px 12px; border-radius: 6px;
+            cursor: pointer; margin-right: 6px; font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+        .btn-edit:hover {
+            background: rgba(139,92,246,0.2);
+            box-shadow: 0 0 15px rgba(139,92,246,0.3);
+        }
+        .btn-del {
+            background: transparent; border: 1px solid var(--red-accent);
+            color: var(--red-accent); padding: 6px 12px; border-radius: 6px;
+            cursor: pointer; font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+        .btn-del:hover {
+            background: rgba(239,68,68,0.2);
+            box-shadow: 0 0 15px rgba(239,68,68,0.3);
+        }
+        
+        .notification {
+            position: fixed; bottom: 30px; right: 30px;
+            padding: 14px 24px; border-radius: 10px; font-weight: 600;
+            z-index: 9999; color: white;
+            animation: fadeInOut 3s forwards;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .notification.success {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        .notification.error {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            80% { opacity: 1; }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+        
+        @media (max-width: 768px) {
+            body { padding: 20px; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🔧 Управление рейсами | Симашкино (SMH)</h1>
+    <div class="nav">
+        <a href="/">← Вернуться на табло</a>
+    </div>
+
+    <div class="card">
+        <h2 id="formTitle">➕ Добавить рейс</h2>
+        <form onsubmit="saveFlight(event)">
+            <input type="hidden" id="editId">
+            
+            <div class="grid">
+                <div class="field">
+                    <label>Авиакомпания</label>
+                    <input type="text" id="airline" placeholder="Например: SMH Airlines" required>
+                </div>
+                <div class="field">
+                    <label>Номер рейса</label>
+                    <input type="text" id="flightNumber" placeholder="SM-101" required>
+                </div>
+                <div class="field">
+                    <label>Город назначения</label>
+                    <input type="text" id="destination" placeholder="Москва" required>
+                </div>
+                <div class="field">
+                    <label>Код IATA</label>
+                    <input type="text" id="iata" placeholder="SVO" maxlength="3" required style="text-transform:uppercase;">
+                </div>
+            </div>
+            
+            <div class="grid">
+                <div class="field">
+                    <label>Начало регистрации</label>
+                    <input type="time" id="checkInStart" required>
+                </div>
+                <div class="field">
+                    <label>Конец регистрации</label>
+                    <input type="time" id="checkInEnd" required>
+                </div>
+                <div class="field">
+                    <label>Начало посадки</label>
+                    <input type="time" id="boardingStart" required>
+                </div>
+                <div class="field">
+                    <label>Конец посадки</label>
+                    <input type="time" id="boardingEnd" required>
+                </div>
+                <div class="field">
+                    <label>Время вылета ✈</label>
+                    <input type="time" id="departureTime" required>
+                </div>
+            </div>
+            
+            <div class="grid">
+                <div class="field">
+                    <label>Стойки регистрации</label>
+                    <input type="text" id="checkInDesks" placeholder="1, 2">
+                </div>
+                <div class="field">
+                    <label>Выход на посадку</label>
+                    <input type="text" id="gate" placeholder="A1">
+                </div>
+                <div class="field">
+                    <label>Дата вылета</label>
+                    <input type="date" id="flightDate" required>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-save" id="submitBtn">➕ Добавить рейс</button>
+            <button type="button" class="btn btn-cancel" id="cancelBtn" onclick="cancelEdit()" style="display:none;">Отмена</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>📋 Все рейсы</h2>
+        <div id="flightsList"><p style="color: var(--text-secondary);">Загрузка...</p></div>
+    </div>
+
+    <script>
+        const API = '/api/flights';
+        let flights = [];
+
+        async function loadFlights() {
+            try {
+                const r = await fetch(API);
+                const d = await r.json();
+                flights = d.flights || [];
+                renderList();
+            } catch(e) {
+                document.getElementById('flightsList').innerHTML = 
+                    '<p style="color: var(--red-accent);">❌ Ошибка загрузки</p>';
+            }
+        }
+
+        async function saveFlight(e) {
+            e.preventDefault();
+            const editId = document.getElementById('editId').value;
+
+            const flight = {
+                airline: document.getElementById('airline').value.trim(),
+                flightNumber: document.getElementById('flightNumber').value.trim(),
+                destination: document.getElementById('destination').value.trim(),
+                iata: document.getElementById('iata').value.trim().toUpperCase(),
+                checkInStart: document.getElementById('checkInStart').value,
+                checkInEnd: document.getElementById('checkInEnd').value,
+                boardingStart: document.getElementById('boardingStart').value,
+                boardingEnd: document.getElementById('boardingEnd').value,
+                departureTime: document.getElementById('departureTime').value,
+                date: document.getElementById('flightDate').value,
+                checkInDesks: document.getElementById('checkInDesks').value.trim(),
+                gate: document.getElementById('gate').value.trim(),
+            };
+
+            if (editId) flight.id = editId;
+
+            try {
+                const r = await fetch(API, {
+                    method: editId ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(flight)
+                });
+                const d = await r.json();
+                
+                if (d.success) {
+                    notify(editId ? '✅ Рейс обновлён!' : '✅ Рейс добавлен!', 'success');
+                    cancelEdit();
+                    loadFlights();
+                } else {
+                    notify('❌ ' + (d.error || 'Ошибка'), 'error');
+                }
+            } catch(err) {
+                notify('❌ Ошибка сохранения', 'error');
+            }
+        }
+
+        function editFlight(flight) {
+            document.getElementById('airline').value = flight.airline || '';
+            document.getElementById('flightNumber').value = flight.flightNumber || '';
+            document.getElementById('destination').value = flight.destination || '';
+            document.getElementById('iata').value = flight.iata || '';
+            document.getElementById('checkInStart').value = flight.checkInStart || '';
+            document.getElementById('checkInEnd').value = flight.checkInEnd || '';
+            document.getElementById('boardingStart').value = flight.boardingStart || '';
+            document.getElementById('boardingEnd').value = flight.boardingEnd || '';
+            document.getElementById('departureTime').value = flight.departureTime || '';
+            document.getElementById('flightDate').value = flight.date || '';
+            document.getElementById('checkInDesks').value = flight.checkInDesks || '';
+            document.getElementById('gate').value = flight.gate || '';
+            document.getElementById('editId').value = flight.id || '';
+
+            document.getElementById('formTitle').textContent = '✏️ Редактировать рейс';
+            document.getElementById('submitBtn').textContent = '💾 Сохранить изменения';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
+            
+            document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            document.querySelector('form').reset();
+            document.getElementById('editId').value = '';
+            document.getElementById('formTitle').textContent = '➕ Добавить рейс';
+            document.getElementById('submitBtn').textContent = '➕ Добавить рейс';
+            document.getElementById('cancelBtn').style.display = 'none';
+            document.getElementById('flightDate').value = new Date().toISOString().split('T')[0];
+        }
+
+        async function deleteFlight(id) {
+            const f = flights.find(fl => fl.id === id);
+            if (!confirm(`🗑 Удалить рейс ${f.airline} ${f.flightNumber} (${f.destination})?`)) return;
+
+            try {
+                await fetch(`${API}?id=${id}`, { method: 'DELETE' });
+                notify('🗑 Рейс удалён', 'success');
+                loadFlights();
+            } catch(err) {
+                notify('❌ Ошибка удаления', 'error');
+            }
+        }
+
+        function renderList() {
+            const container = document.getElementById('flightsList');
+            
+            if (!flights.length) {
+                container.innerHTML = '<p style="color: var(--text-secondary);">Нет добавленных рейсов</p>';
+                return;
+            }
+
+            const sorted = [...flights].sort((a, b) => 
+                (a.date + a.departureTime).localeCompare(b.date + b.departureTime)
+            );
+
+            container.innerHTML = sorted.map(f => `
+                <div class="flight-item">
+                    <div class="flight-info">
+                        <span class="flight-detail">📅 <strong>${f.date || '—'}</strong></span>
+                        <span class="flight-detail">🕐 <strong>${f.departureTime || '—'}</strong></span>
+                        <span class="flight-detail">✈ <strong>${esc(f.airline)} ${esc(f.flightNumber)}</strong></span>
+                        <span class="flight-detail">📍 ${esc(f.destination)} (${esc(f.iata)})</span>
+                        <span class="flight-detail">📋 ${f.checkInStart || '—'}-${f.checkInEnd || '—'}</span>
+                        <span class="flight-detail">🚪 ${f.boardingStart || '—'}-${f.boardingEnd || '—'}</span>
+                        ${f.checkInDesks ? `<span class="flight-detail">Стойки: ${esc(f.checkInDesks)}</span>` : ''}
+                        ${f.gate ? `<span class="flight-detail">Выход: ${esc(f.gate)}</span>` : ''}
+                    </div>
+                    <div>
+                        <button class="btn-edit" onclick="editFlight(${JSON.stringify(f).replace(/"/g, '&quot;')})">✏️</button>
+                        <button class="btn-del" onclick="deleteFlight('${f.id}')">🗑</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function esc(s) {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+        }
+
+        function notify(msg, type) {
+            const n = document.createElement('div');
+            n.className = `notification ${type}`;
+            n.textContent = msg;
+            document.body.appendChild(n);
+            setTimeout(() => n.remove(), 3000);
+        }
+
+        document.getElementById('flightDate').value = new Date().toISOString().split('T')[0];
+        loadFlights();
+        setInterval(loadFlights, 15000);
+    </script>
+</body>
+</html>
