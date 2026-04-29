@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Онлайн-табло ✈ Аэропорт Симашкино (SMH) | Самара</title>
+    <style>
+        :root {
+            --bg-dark: #0f0a1a;
+            --bg-panel: #1a1129;
+            --accent: #a855f7;
+            --accent-light: #c084fc;
+            --accent-glow: #7c3aed;
+            --text-primary: #f3e8ff;
+            --text-secondary: #a78bfa;
+            --border: #2e1a4a;
+            --blue-accent: #8b5cf6;
+            --green-status: #10b981;
+            --red-status: #ef4444;
+            --orange-status: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            background-image:
+                radial-gradient(ellipse at 20% 50%, rgba(168,85,247,0.12) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 50%, rgba(192,132,252,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 0%, rgba(124,58,237,0.1) 0%, transparent 40%);
+        }
+        
+        .header {
+            background: var(--bg-panel);
+            padding: 20px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid var(--border);
+            flex-wrap: wrap; gap: 20px;
+            box-shadow: 0 4px 20px rgba(168,85,247,0.1);
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .code {
+            font-size: 2.5rem; font-weight: 800; color: var(--accent);
+            letter-spacing: 2px;
+            text-shadow: 0 0 30px rgba(168,85,247,0.5);
+        }
+        .name { font-size: 1.4rem; font-weight: 600; color: var(--text-primary); }
+        .city { font-size: 0.9rem; color: var(--text-secondary); }
+        .clock {
+            font-size: 1.8rem; font-weight: 700; color: var(--accent-light);
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 20px rgba(192,132,252,0.4);
+        }
+        .date-text { font-size: 0.85rem; color: var(--text-secondary); text-align: right; }
+        
+        .container { max-width: 1400px; margin: 30px auto; padding: 0 20px; }
+        .title {
+            font-size: 1.5rem; font-weight: 700; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 10px;
+            color: var(--accent-light);
+        }
+        .title::before {
+            content: ''; display: inline-block; width: 4px; height: 28px;
+            background: linear-gradient(to bottom, var(--accent), var(--accent-glow));
+            border-radius: 2px;
+        }
+        
+        table {
+            width: 100%; background: var(--bg-panel);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            border-collapse: collapse; overflow: hidden;
+            box-shadow: 0 8px 30px rgba(168,85,247,0.08);
+        }
+        th {
+            background: rgba(46,26,74,0.6);
+            padding: 16px; text-align: left;
+            color: var(--text-secondary);
+            font-size: 0.85rem; text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid var(--border);
+        }
+        td { padding: 18px 16px; border-bottom: 1px solid var(--border); }
+        tr { transition: all 0.3s ease; }
+        tr:hover { background: rgba(168,85,247,0.08); box-shadow: inset 4px 0 0 var(--accent); }
+        
+        .airline { color: var(--blue-accent); font-weight: 600; }
+        .flight-num { font-weight: 700; font-size: 1.1rem; }
+        .dest { color: var(--text-primary); }
+        .iata-code {
+            color: var(--accent-light); font-weight: 700; font-size: 0.9rem;
+            text-shadow: 0 0 10px rgba(192,132,252,0.5);
+        }
+        
+        .badge {
+            display: inline-block; padding: 6px 14px; border-radius: 20px;
+            font-size: 0.85rem; font-weight: 600; letter-spacing: 0.3px;
+            transition: all 0.3s ease;
+        }
+        .status-scheduled {
+            background: rgba(168,85,247,0.15);
+            color: var(--accent-light);
+            border: 1px solid rgba(168,85,247,0.3);
+        }
+        .status-check-in {
+            background: rgba(139,92,246,0.25);
+            color: #a78bfa;
+            animation: pulse-purple 2s infinite;
+            border: 1px solid rgba(139,92,246,0.5);
+        }
+        .status-boarding {
+            background: rgba(245,158,11,0.2);
+            color: #fbbf24;
+            animation: pulse-orange 1s infinite;
+            border: 1px solid rgba(245,158,11,0.4);
+        }
+        .status-departed {
+            background: rgba(16,185,129,0.15);
+            color: #34d399;
+            border: 1px solid rgba(16,185,129,0.3);
+        }
+        .status-check-in-closed {
+            background: rgba(168,85,247,0.1);
+            color: var(--text-secondary);
+            border: 1px solid rgba(168,85,247,0.2);
+        }
+        .status-boarding-closed {
+            background: rgba(239,68,68,0.15);
+            color: #f87171;
+            border: 1px solid rgba(239,68,68,0.3);
+        }
+        
+        @keyframes pulse-purple {
+            0%, 100% { box-shadow: 0 0 5px rgba(168,85,247,0.3); }
+            50% { box-shadow: 0 0 20px rgba(168,85,247,0.6); }
+        }
+        @keyframes pulse-orange {
+            0%, 100% { box-shadow: 0 0 5px rgba(245,158,11,0.3); }
+            50% { box-shadow: 0 0 20px rgba(245,158,11,0.6); }
+        }
+        
+        .info-row { font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; }
+        
+        .bottom-bar {
+            position: fixed; bottom: 20px;
+            display: flex; gap: 10px;
+        }
+        .bottom-bar.left { left: 20px; }
+        .bottom-bar.right { right: 20px; }
+        
+        .indicator {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            padding: 8px 16px; border-radius: 20px;
+            font-size: 0.8rem; color: var(--text-secondary);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--accent);
+            animation: pulse-purple 2s infinite;
+        }
+        
+        .admin-link {
+            background: var(--bg-panel);
+            color: var(--accent-light);
+            padding: 10px 20px; border-radius: 20px;
+            text-decoration: none; border: 1px solid var(--accent);
+            font-weight: 600; font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+        .admin-link:hover {
+            background: rgba(168,85,247,0.15);
+            box-shadow: 0 0 20px rgba(168,85,247,0.3);
+        }
+        
+        @media (max-width: 768px) {
+            .header { padding: 16px 20px; }
+            .code { font-size: 1.8rem; }
+            thead { display: none; }
+            td { display: block; padding: 12px 16px; text-align: right; }
+            td::before {
+                content: attr(data-label);
+                font-weight: 600; color: var(--text-secondary);
+                float: left; font-size: 0.7rem; text-transform: uppercase;
+            }
+            tr { display: block; border-bottom: 2px solid var(--border); padding: 8px 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <div class="code">SMH</div>
+            <div>
+                <div class="name">Аэропорт Симашкино</div>
+                <div class="city">Самара • Международный</div>
+            </div>
+        </div>
+        <div>
+            <div class="clock" id="clock">--:--</div>
+            <div class="date-text" id="dateDisplay">--</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="title">Вылет • Departures</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Время</th>
+                    <th>Рейс</th>
+                    <th>Направление</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody id="board">
+                <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-secondary);">Загрузка рейсов...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="bottom-bar left">
+        <div class="indicator">
+            <div class="dot"></div>
+            <span>Обновляется автоматически</span>
+        </div>
+    </div>
+    <div class="bottom-bar right">
+        <a href="/admin.html" class="admin-link">🔧 Управление</a>
+    </div>
+
+    <script>
+        const API = '/api/flights';
+        let flights = [];
+
+        async function load() {
+            try {
+                const r = await fetch(API);
+                const d = await r.json();
+                flights = d.flights || [];
+                updateStatuses();
+                render();
+            } catch(e) {
+                document.getElementById('board').innerHTML = 
+                    '<tr><td colspan="4" style="text-align:center;padding:40px;color:#ef4444;">⚠ Ошибка загрузки данных</td></tr>';
+            }
+        }
+
+        function timeToMin(t) {
+            if (!t) return 0;
+            const [h, m] = t.split(':').map(Number);
+            return h * 60 + m;
+        }
+
+        function updateStatuses() {
+            const now = new Date();
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+            const today = now.toISOString().split('T')[0];
+
+            flights.forEach(f => {
+                if (!f.date || f.date !== today) {
+                    if (f.date < today) {
+                        f.status = 'departed';
+                        f.statusText = 'Вылетел';
+                    } else {
+                        f.status = 'scheduled';
+                        f.statusText = 'По расписанию';
+                    }
+                    return;
+                }
+
+                const cis = timeToMin(f.checkInStart);
+                const cie = timeToMin(f.checkInEnd);
+                const bs = timeToMin(f.boardingStart);
+                const be = timeToMin(f.boardingEnd);
+                const dep = timeToMin(f.departureTime);
+
+                if (currentTime < cis) {
+                    f.status = 'scheduled';
+                    f.statusText = 'По расписанию';
+                } else if (currentTime >= cis && currentTime < cie) {
+                    f.status = 'check-in';
+                    f.statusText = 'Регистрация';
+                } else if (currentTime >= cie && currentTime < bs) {
+                    f.status = 'check-in-closed';
+                    f.statusText = 'Регистрация закончена';
+                } else if (currentTime >= bs && currentTime < be) {
+                    f.status = 'boarding';
+                    f.statusText = 'Посадка';
+                } else if (currentTime >= be && currentTime < dep) {
+                    f.status = 'boarding-closed';
+                    f.statusText = 'Посадка закончена';
+                } else if (currentTime >= dep) {
+                    f.status = 'departed';
+                    f.statusText = 'Вылетел';
+                }
+            });
+        }
+
+        function render() {
+            const today = new Date().toISOString().split('T')[0];
+            const visible = flights
+                .filter(f => f.date >= today)
+                .sort((a, b) => (a.date + a.departureTime).localeCompare(b.date + b.departureTime));
+
+            const tbody = document.getElementById('board');
+
+            if (!visible.length) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-secondary);">Нет рейсов для отображения</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = visible.map(f => `
+                <tr>
+                    <td data-label="Время"><strong>${f.departureTime || '—'}</strong></td>
+                    <td data-label="Рейс">
+                        <span class="airline">${esc(f.airline)}</span><br>
+                        <span class="flight-num">${esc(f.flightNumber)}</span>
+                    </td>
+                    <td data-label="Направление">
+                        <span class="dest">${esc(f.destination)}</span>
+                        <span class="iata-code">${esc(f.iata)}</span>
+                    </td>
+                    <td data-label="Статус">
+                        <span class="badge status-${f.status}">${f.statusText}</span>
+                        ${f.checkInDesks && f.status === 'check-in' ? `<div class="info-row">Стойки: ${esc(f.checkInDesks)}</div>` : ''}
+                        ${f.gate && f.status === 'boarding' ? `<div class="info-row">Выход: ${esc(f.gate)}</div>` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function esc(s) {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+        }
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent = 
+                now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('dateDisplay').textContent = 
+                now.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
+        updateClock();
+        setInterval(updateClock, 1000);
+        load();
+        setInterval(load, 10000);
+    </script>
+</body>
+</html>
