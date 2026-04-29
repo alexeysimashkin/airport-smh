@@ -232,173 +232,187 @@
     </div>
 
         <script>
-        const API = '/api/flights';
-        let flights = [];
+    const API = '/api/flights';
+    let flights = [];
 
-        // 🔥 ФУНКЦИЯ ПОЛУЧЕНИЯ САМАРСКОГО ВРЕМЕНИ (UTC+4)
-        function getSamaraTime() {
-            const now = new Date();
-            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-            return new Date(utc + (4 * 3600000)); // UTC+4 (Самара)
-        }
+    // 🔥 САМАРСКОЕ ВРЕМЯ ВСЕГДА UTC+4 (жёстко)
+    function getSamaraDateString() {
+        const now = new Date();
+        const utcYear = now.getUTCFullYear();
+        const utcMonth = now.getUTCMonth();
+        const utcDate = now.getUTCDate();
+        const utcHours = now.getUTCHours();
         
-        function getSamaraDate() {
-            const samara = getSamaraTime();
-            const year = samara.getFullYear();
-            const month = String(samara.getMonth() + 1).padStart(2, '0');
-            const day = String(samara.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-        async function loadFlights() {
-            try {
-                const r = await fetch(API);
-                const d = await r.json();
-                flights = d.flights || [];
-                renderList();
-            } catch(e) {
-                document.getElementById('flightsList').innerHTML = 
-                    '<p style="color: var(--red-accent);">❌ Ошибка загрузки</p>';
-            }
-        }
-
-        async function saveFlight(e) {
-            e.preventDefault();
-            const editId = document.getElementById('editId').value;
-
-            const flight = {
-                airline: document.getElementById('airline').value.trim(),
-                flightNumber: document.getElementById('flightNumber').value.trim(),
-                destination: document.getElementById('destination').value.trim(),
-                iata: document.getElementById('iata').value.trim().toUpperCase(),
-                checkInStart: document.getElementById('checkInStart').value,
-                checkInEnd: document.getElementById('checkInEnd').value,
-                boardingStart: document.getElementById('boardingStart').value,
-                boardingEnd: document.getElementById('boardingEnd').value,
-                departureTime: document.getElementById('departureTime').value,
-                date: document.getElementById('flightDate').value,
-                checkInDesks: document.getElementById('checkInDesks').value.trim(),
-                gate: document.getElementById('gate').value.trim(),
-            };
-
-            if (editId) flight.id = editId;
-
-            try {
-                const r = await fetch(API, {
-                    method: editId ? 'PUT' : 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(flight)
-                });
-                const d = await r.json();
-                
-                if (d.success) {
-                    notify(editId ? '✅ Рейс обновлён!' : '✅ Рейс добавлен!', 'success');
-                    cancelEdit();
-                    loadFlights();
-                } else {
-                    notify('❌ ' + (d.error || 'Ошибка'), 'error');
+        let samaraHours = utcHours + 4;
+        let samaraDate = utcDate;
+        let samaraMonth = utcMonth;
+        let samaraYear = utcYear;
+        
+        if (samaraHours >= 24) {
+            samaraDate += 1;
+            const daysInMonth = new Date(utcYear, utcMonth + 1, 0).getDate();
+            if (samaraDate > daysInMonth) {
+                samaraDate = 1;
+                samaraMonth += 1;
+                if (samaraMonth > 11) {
+                    samaraMonth = 0;
+                    samaraYear += 1;
                 }
-            } catch(err) {
-                notify('❌ Ошибка сохранения', 'error');
             }
         }
-
-        function editFlight(flight) {
-            document.getElementById('airline').value = flight.airline || '';
-            document.getElementById('flightNumber').value = flight.flightNumber || '';
-            document.getElementById('destination').value = flight.destination || '';
-            document.getElementById('iata').value = flight.iata || '';
-            document.getElementById('checkInStart').value = flight.checkInStart || '';
-            document.getElementById('checkInEnd').value = flight.checkInEnd || '';
-            document.getElementById('boardingStart').value = flight.boardingStart || '';
-            document.getElementById('boardingEnd').value = flight.boardingEnd || '';
-            document.getElementById('departureTime').value = flight.departureTime || '';
-            document.getElementById('flightDate').value = flight.date || '';
-            document.getElementById('checkInDesks').value = flight.checkInDesks || '';
-            document.getElementById('gate').value = flight.gate || '';
-            document.getElementById('editId').value = flight.id || '';
-
-            document.getElementById('formTitle').textContent = '✏️ Редактировать рейс';
-            document.getElementById('submitBtn').textContent = '💾 Сохранить изменения';
-            document.getElementById('cancelBtn').style.display = 'inline-block';
-            
-            document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function cancelEdit() {
-            document.querySelector('form').reset();
-            document.getElementById('editId').value = '';
-            document.getElementById('formTitle').textContent = '➕ Добавить рейс';
-            document.getElementById('submitBtn').textContent = '➕ Добавить рейс';
-            document.getElementById('cancelBtn').style.display = 'none';
-            // Устанавливаем САМАРСКУЮ дату
-            document.getElementById('flightDate').value = getSamaraDate();
-        }
-
-        async function deleteFlight(id) {
-            const f = flights.find(fl => fl.id === id);
-            if (!confirm(`🗑 Удалить рейс ${f.airline} ${f.flightNumber} (${f.destination})?`)) return;
-
-            try {
-                await fetch(`${API}?id=${id}`, { method: 'DELETE' });
-                notify('🗑 Рейс удалён', 'success');
-                loadFlights();
-            } catch(err) {
-                notify('❌ Ошибка удаления', 'error');
-            }
-        }
-
-        function renderList() {
-            const container = document.getElementById('flightsList');
-            
-            if (!flights.length) {
-                container.innerHTML = '<p style="color: var(--text-secondary);">Нет добавленных рейсов</p>';
-                return;
-            }
-
-            const sorted = [...flights].sort((a, b) => 
-                (a.date + a.departureTime).localeCompare(b.date + b.departureTime)
-            );
-
-            container.innerHTML = sorted.map(f => `
-                <div class="flight-item">
-                    <div class="flight-info">
-                        <span class="flight-detail">📅 <strong>${f.date || '—'}</strong></span>
-                        <span class="flight-detail">🕐 <strong>${f.departureTime || '—'}</strong></span>
-                        <span class="flight-detail">✈ <strong>${esc(f.airline)} ${esc(f.flightNumber)}</strong></span>
-                        <span class="flight-detail">📍 ${esc(f.destination)} (${esc(f.iata)})</span>
-                        <span class="flight-detail">📋 ${f.checkInStart || '—'}-${f.checkInEnd || '—'}</span>
-                        <span class="flight-detail">🚪 ${f.boardingStart || '—'}-${f.boardingEnd || '—'}</span>
-                        ${f.checkInDesks ? `<span class="flight-detail">Стойки: ${esc(f.checkInDesks)}</span>` : ''}
-                        ${f.gate ? `<span class="flight-detail">Выход: ${esc(f.gate)}</span>` : ''}
-                    </div>
-                    <div>
-                        <button class="btn-edit" onclick="editFlight(${JSON.stringify(f).replace(/"/g, '&quot;')})">✏️</button>
-                        <button class="btn-del" onclick="deleteFlight('${f.id}')">🗑</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function esc(s) {
-            const d = document.createElement('div');
-            d.textContent = s || '';
-            return d.innerHTML;
-        }
-
-        function notify(msg, type) {
-            const n = document.createElement('div');
-            n.className = `notification ${type}`;
-            n.textContent = msg;
-            document.body.appendChild(n);
-            setTimeout(() => n.remove(), 3000);
-        }
-
-        // Устанавливаем САМАРСКУЮ дату при загрузке
-        document.getElementById('flightDate').value = getSamaraDate();
         
-        loadFlights();
-        setInterval(loadFlights, 15000);
-    </script>
+        const y = samaraYear;
+        const m = String(samaraMonth + 1).padStart(2, '0');
+        const d = String(samaraDate).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    async function loadFlights() {
+        try {
+            const r = await fetch(API);
+            const d = await r.json();
+            flights = d.flights || [];
+            renderList();
+        } catch(e) {
+            document.getElementById('flightsList').innerHTML = 
+                '<p style="color: var(--red-accent);">❌ Ошибка загрузки</p>';
+        }
+    }
+
+    async function saveFlight(e) {
+        e.preventDefault();
+        const editId = document.getElementById('editId').value;
+
+        const flight = {
+            airline: document.getElementById('airline').value.trim(),
+            flightNumber: document.getElementById('flightNumber').value.trim(),
+            destination: document.getElementById('destination').value.trim(),
+            iata: document.getElementById('iata').value.trim().toUpperCase(),
+            checkInStart: document.getElementById('checkInStart').value,
+            checkInEnd: document.getElementById('checkInEnd').value,
+            boardingStart: document.getElementById('boardingStart').value,
+            boardingEnd: document.getElementById('boardingEnd').value,
+            departureTime: document.getElementById('departureTime').value,
+            date: document.getElementById('flightDate').value,
+            checkInDesks: document.getElementById('checkInDesks').value.trim(),
+            gate: document.getElementById('gate').value.trim(),
+        };
+
+        if (editId) flight.id = editId;
+
+        try {
+            const r = await fetch(API, {
+                method: editId ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(flight)
+            });
+            const d = await r.json();
+            
+            if (d.success) {
+                notify(editId ? '✅ Рейс обновлён!' : '✅ Рейс добавлен!', 'success');
+                cancelEdit();
+                loadFlights();
+            } else {
+                notify('❌ ' + (d.error || 'Ошибка'), 'error');
+            }
+        } catch(err) {
+            notify('❌ Ошибка сохранения', 'error');
+        }
+    }
+
+    function editFlight(flight) {
+        document.getElementById('airline').value = flight.airline || '';
+        document.getElementById('flightNumber').value = flight.flightNumber || '';
+        document.getElementById('destination').value = flight.destination || '';
+        document.getElementById('iata').value = flight.iata || '';
+        document.getElementById('checkInStart').value = flight.checkInStart || '';
+        document.getElementById('checkInEnd').value = flight.checkInEnd || '';
+        document.getElementById('boardingStart').value = flight.boardingStart || '';
+        document.getElementById('boardingEnd').value = flight.boardingEnd || '';
+        document.getElementById('departureTime').value = flight.departureTime || '';
+        document.getElementById('flightDate').value = flight.date || '';
+        document.getElementById('checkInDesks').value = flight.checkInDesks || '';
+        document.getElementById('gate').value = flight.gate || '';
+        document.getElementById('editId').value = flight.id || '';
+
+        document.getElementById('formTitle').textContent = '✏️ Редактировать рейс';
+        document.getElementById('submitBtn').textContent = '💾 Сохранить изменения';
+        document.getElementById('cancelBtn').style.display = 'inline-block';
+        
+        document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function cancelEdit() {
+        document.querySelector('form').reset();
+        document.getElementById('editId').value = '';
+        document.getElementById('formTitle').textContent = '➕ Добавить рейс';
+        document.getElementById('submitBtn').textContent = '➕ Добавить рейс';
+        document.getElementById('cancelBtn').style.display = 'none';
+        document.getElementById('flightDate').value = getSamaraDateString();
+    }
+
+    async function deleteFlight(id) {
+        const f = flights.find(fl => fl.id === id);
+        if (!confirm(`🗑 Удалить рейс ${f.airline} ${f.flightNumber} (${f.destination})?`)) return;
+
+        try {
+            await fetch(`${API}?id=${id}`, { method: 'DELETE' });
+            notify('🗑 Рейс удалён', 'success');
+            loadFlights();
+        } catch(err) {
+            notify('❌ Ошибка удаления', 'error');
+        }
+    }
+
+    function renderList() {
+        const container = document.getElementById('flightsList');
+        
+        if (!flights.length) {
+            container.innerHTML = '<p style="color: var(--text-secondary);">Нет добавленных рейсов</p>';
+            return;
+        }
+
+        const sorted = [...flights].sort((a, b) => 
+            (a.date + a.departureTime).localeCompare(b.date + b.departureTime)
+        );
+
+        container.innerHTML = sorted.map(f => `
+            <div class="flight-item">
+                <div class="flight-info">
+                    <span class="flight-detail">📅 <strong>${f.date || '—'}</strong></span>
+                    <span class="flight-detail">🕐 <strong>${f.departureTime || '—'}</strong></span>
+                    <span class="flight-detail">✈ <strong>${esc(f.airline)} ${esc(f.flightNumber)}</strong></span>
+                    <span class="flight-detail">📍 ${esc(f.destination)} (${esc(f.iata)})</span>
+                    <span class="flight-detail">📋 ${f.checkInStart || '—'}-${f.checkInEnd || '—'}</span>
+                    <span class="flight-detail">🚪 ${f.boardingStart || '—'}-${f.boardingEnd || '—'}</span>
+                    ${f.checkInDesks ? `<span class="flight-detail">Стойки: ${esc(f.checkInDesks)}</span>` : ''}
+                    ${f.gate ? `<span class="flight-detail">Выход: ${esc(f.gate)}</span>` : ''}
+                </div>
+                <div>
+                    <button class="btn-edit" onclick="editFlight(${JSON.stringify(f).replace(/"/g, '&quot;')})">✏️</button>
+                    <button class="btn-del" onclick="deleteFlight('${f.id}')">🗑</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function esc(s) {
+        const d = document.createElement('div');
+        d.textContent = s || '';
+        return d.innerHTML;
+    }
+
+    function notify(msg, type) {
+        const n = document.createElement('div');
+        n.className = `notification ${type}`;
+        n.textContent = msg;
+        document.body.appendChild(n);
+        setTimeout(() => n.remove(), 3000);
+    }
+
+    document.getElementById('flightDate').value = getSamaraDateString();
+    loadFlights();
+    setInterval(loadFlights, 15000);
+</script>
 </body>
 </html>
