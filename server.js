@@ -7,33 +7,17 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const BOT_TOKEN = '8657070527:AAFJP97c3zAjl6wxpd1fnOWaWZnOWZQLRH0';
-const CHANNEL_ID = '-1003993034048';
+const JSONBLOB_URL = 'https://jsonblob.com/019e0dc6-5e5c-7396-812a-955fe1d5906a';
 
 global.flightsCache = global.flightsCache || [];
 
 async function loadFlights() {
   try {
-    // Читаем историю сообщений канала
-    const res = await fetch(
-      `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?limit=100&allowed_updates=["channel_post"]`
-    );
+    const res = await fetch(JSONBLOB_URL);
     const data = await res.json();
-    
-    if (data.ok && data.result.length > 0) {
-      // Ищем последнее сообщение из нашего канала с JSON
-      for (let i = data.result.length - 1; i >= 0; i--) {
-        const msg = data.result[i].channel_post;
-        if (msg && String(msg.chat.id) === CHANNEL_ID && msg.text) {
-          try {
-            const flights = JSON.parse(msg.text);
-            if (Array.isArray(flights)) {
-              global.flightsCache = flights;
-              return flights;
-            }
-          } catch(e) {}
-        }
-      }
+    if (Array.isArray(data)) {
+      global.flightsCache = data;
+      return data;
     }
   } catch (e) {
     console.log('Ошибка загрузки');
@@ -44,17 +28,11 @@ async function loadFlights() {
 async function saveFlights(flights) {
   global.flightsCache = flights;
   try {
-    await fetch(
-      `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: CHANNEL_ID,
-          text: JSON.stringify(flights)
-        })
-      }
-    );
+    await fetch(JSONBLOB_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(flights)
+    });
   } catch (e) {
     console.log('Ошибка сохранения');
   }
@@ -96,25 +74,10 @@ function formatTime(date) {
   return `${h}:${m}`;
 }
 
-function isAfter(date1, date2) {
-  if (!date1 || !date2) return false;
-  return date1.getTime() > date2.getTime();
-}
-
-function isSameOrAfter(date1, date2) {
-  if (!date1 || !date2) return false;
-  return date1.getTime() >= date2.getTime();
-}
-
-function isSameOrBefore(date1, date2) {
-  if (!date1 || !date2) return false;
-  return date1.getTime() <= date2.getTime();
-}
-
-function isBefore(date1, date2) {
-  if (!date1 || !date2) return false;
-  return date1.getTime() < date2.getTime();
-}
+function isAfter(d1, d2) { return d1 && d2 && d1.getTime() > d2.getTime(); }
+function isSameOrAfter(d1, d2) { return d1 && d2 && d1.getTime() >= d2.getTime(); }
+function isSameOrBefore(d1, d2) { return d1 && d2 && d1.getTime() <= d2.getTime(); }
+function isBefore(d1, d2) { return d1 && d2 && d1.getTime() < d2.getTime(); }
 
 function computeFlightStatus(flight) {
   if (flight.status === 'cancelled') return 'cancelled';
@@ -125,20 +88,17 @@ function computeFlightStatus(flight) {
   const checkInEnd = parseDate(flight.checkInEnd);
   const boardingStart = parseDate(flight.boardingStart);
   const boardingEnd = parseDate(flight.boardingEnd);
-  
-  const hasCheckIn = checkInStart && checkInEnd;
-  const hasBoarding = boardingStart && boardingEnd;
 
-  if (hasBoarding && isAfter(now, boardingEnd)) return 'boarding_completed';
-  if (hasBoarding && isSameOrAfter(now, boardingStart) && isSameOrBefore(now, boardingEnd)) return 'boarding';
-  if (hasCheckIn && isAfter(now, checkInEnd)) {
-    if (!hasBoarding || isBefore(now, boardingStart)) return 'checkin_completed';
+  if (boardingEnd && isAfter(now, boardingEnd)) return 'boarding_completed';
+  if (boardingStart && boardingEnd && isSameOrAfter(now, boardingStart) && isSameOrBefore(now, boardingEnd)) return 'boarding';
+  if (checkInEnd && isAfter(now, checkInEnd)) {
+    if (!boardingStart || isBefore(now, boardingStart)) return 'checkin_completed';
   }
-  if (hasCheckIn && isSameOrAfter(now, checkInStart) && isSameOrBefore(now, checkInEnd)) return 'checkin';
+  if (checkInStart && checkInEnd && isSameOrAfter(now, checkInStart) && isSameOrBefore(now, checkInEnd)) return 'checkin';
 
   const schedDep = parseDate(flight.scheduledDeparture);
   const expectedDep = parseDate(flight.expectedDeparture);
-  if (expectedDep && schedDep && schedDep > schedDep && isBefore(now, expectedDep)) return 'delayed';
+  if (expectedDep && schedDep && expectedDep > schedDep && isBefore(now, expectedDep)) return 'delayed';
 
   return 'scheduled';
 }
@@ -150,26 +110,21 @@ function getStatusText(flight) {
   const status = computeFlightStatus(flight);
   const expectedDep = parseDate(flight.expectedDeparture);
   const schedDep = parseDate(flight.scheduledDeparture);
-  const isDelayed = expectedDep && schedDep && expectedDep.getTime() > schedDep.getTime();
-  const delayedTime = expectedDep ? formatTime(expectedDep) : '';
+  const delayed = expectedDep && schedDep && expectedDep.getTime() > schedDep.getTime();
+  const time = expectedDep ? formatTime(expectedDep) : '';
 
-  if (isDelayed) {
-    switch (status) {
-      case 'checkin': return `Задержан до ${delayedTime}\nРегистрация`;
-      case 'checkin_completed': return `Задержан до ${delayedTime}\nРегистрация закончена`;
-      case 'boarding': return `Задержан до ${delayedTime}\nПосадка`;
-      case 'boarding_completed': return `Задержан до ${delayedTime}\nПосадка закончена`;
-      default: return `Задержан до ${delayedTime}`;
-    }
-  } else {
-    switch (status) {
-      case 'checkin': return 'Регистрация';
-      case 'checkin_completed': return 'Регистрация закончена';
-      case 'boarding': return 'Посадка';
-      case 'boarding_completed': return 'Посадка закончена';
-      default: return 'По расписанию';
-    }
+  if (delayed) {
+    if (status === 'checkin') return `Задержан до ${time}\nРегистрация`;
+    if (status === 'checkin_completed') return `Задержан до ${time}\nРегистрация закончена`;
+    if (status === 'boarding') return `Задержан до ${time}\nПосадка`;
+    if (status === 'boarding_completed') return `Задержан до ${time}\nПосадка закончена`;
+    return `Задержан до ${time}`;
   }
+  if (status === 'checkin') return 'Регистрация';
+  if (status === 'checkin_completed') return 'Регистрация закончена';
+  if (status === 'boarding') return 'Посадка';
+  if (status === 'boarding_completed') return 'Посадка закончена';
+  return 'По расписанию';
 }
 
 function getFlightDay(flight) {
@@ -177,20 +132,15 @@ function getFlightDay(flight) {
   const expectedDep = parseDate(flight.expectedDeparture);
   const depTime = expectedDep || schedDep;
   if (!depTime) return 'today';
+  if (flight.status === 'departed') return 'departed';
 
   const todayStart = getTodayStart();
   const tomorrowStart = getTomorrowStart();
   const tomorrowEnd = getTomorrowEnd();
 
-  if (flight.status === 'departed') return 'departed';
-
   if (depTime >= todayStart && depTime < tomorrowStart) return 'today';
   if (depTime >= tomorrowStart && depTime <= tomorrowEnd) return 'tomorrow';
-
-  if (schedDep && expectedDep) {
-    if (schedDep >= todayStart && schedDep < tomorrowStart && expectedDep >= tomorrowStart) return 'both';
-  }
-
+  if (schedDep && expectedDep && schedDep >= todayStart && schedDep < tomorrowStart && expectedDep >= tomorrowStart) return 'both';
   if (depTime >= todayStart) return 'today';
   return 'tomorrow';
 }
@@ -198,28 +148,19 @@ function getFlightDay(flight) {
 app.get('/api/flights', async (req, res) => {
   const flights = await loadFlights();
   const showDeparted = req.query.showDeparted === 'true';
-  
   const sorted = [...flights].sort((a, b) => {
-    const timeA = parseDate(a.expectedDeparture || a.scheduledDeparture);
-    const timeB = parseDate(b.expectedDeparture || b.scheduledDeparture);
-    if (!timeA || !timeB) return 0;
-    return timeA.getTime() - timeB.getTime();
+    const ta = parseDate(a.expectedDeparture || a.scheduledDeparture);
+    const tb = parseDate(b.expectedDeparture || b.scheduledDeparture);
+    return (ta && tb) ? ta - tb : 0;
   });
-  
   const enriched = sorted
     .filter(f => f.status !== 'departed' || showDeparted)
-    .map(f => ({
-      ...f,
-      computedStatus: computeFlightStatus(f),
-      statusText: getStatusText(f),
-      flightDay: getFlightDay(f)
-    }));
-  
+    .map(f => ({ ...f, computedStatus: computeFlightStatus(f), statusText: getStatusText(f), flightDay: getFlightDay(f) }));
   res.json(enriched);
 });
 
 app.post('/api/flights', async (req, res) => {
-  let flights = await loadFlights();
+  const flights = await loadFlights();
   const flight = {
     id: Date.now().toString(),
     flightNumber: req.body.flightNumber || '',
@@ -242,13 +183,12 @@ app.post('/api/flights', async (req, res) => {
 });
 
 app.put('/api/flights/:id', async (req, res) => {
-  let flights = await loadFlights();
-  const index = flights.findIndex(f => f.id === req.params.id);
-  if (index === -1) return res.status(404).json({ error: 'Рейс не найден' });
-  
-  flights[index] = { ...flights[index], ...req.body, id: flights[index].id };
+  const flights = await loadFlights();
+  const i = flights.findIndex(f => f.id === req.params.id);
+  if (i === -1) return res.status(404).json({ error: 'Не найден' });
+  flights[i] = { ...flights[i], ...req.body, id: flights[i].id };
   await saveFlights(flights);
-  res.json(flights[index]);
+  res.json(flights[i]);
 });
 
 app.delete('/api/flights/:id', async (req, res) => {
@@ -263,8 +203,5 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log('Симашкино запущен');
-});
-
+app.listen(PORT, () => console.log('OK'));
 module.exports = app;
