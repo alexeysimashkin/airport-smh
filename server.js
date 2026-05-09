@@ -13,7 +13,7 @@ global.flightsCache = global.flightsCache || [];
 
 async function loadFlights() {
   try {
-    const res = await fetch(JSONBLOB_URL);
+    const res = await fetch(JSONBLOB_URL + '?t=' + Date.now());
     const data = await res.json();
     if (Array.isArray(data)) {
       global.flightsCache = data;
@@ -30,9 +30,13 @@ async function saveFlights(flights) {
   try {
     await fetch(JSONBLOB_URL, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
       body: JSON.stringify(flights)
     });
+    await new Promise(r => setTimeout(r, 1000));
   } catch (e) {
     console.log('Ошибка сохранения');
   }
