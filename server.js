@@ -1,36 +1,63 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const DATA_FILE = '/tmp/samara-flights.json';
+const BOT_TOKEN = '8657070527:AAFJP97c3zAjl6wxpd1fnOWaWZnOWZQLRH0';
+const CHANNEL_ID = '-1003993034048';
 
 global.flightsCache = global.flightsCache || [];
 
-function loadFlights() {
+async function loadFlights() {
   try {
-    if (fs.existsSync(DATA_FILE)) {
-      const data = fs.readFileSync(DATA_FILE, 'utf-8');
-      const flights = JSON.parse(data);
-      if (Array.isArray(flights)) {
-        global.flightsCache = flights;
-        return flights;
+    // Читаем историю сообщений канала
+    const res = await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?limit=100&allowed_updates=["channel_post"]`
+    );
+    const data = await res.json();
+    
+    if (data.ok && data.result.length > 0) {
+      // Ищем последнее сообщение из нашего канала с JSON
+      for (let i = data.result.length - 1; i >= 0; i--) {
+        const msg = data.result[i].channel_post;
+        if (msg && String(msg.chat.id) === CHANNEL_ID && msg.text) {
+          try {
+            const flights = JSON.parse(msg.text);
+            if (Array.isArray(flights)) {
+              global.flightsCache = flights;
+              return flights;
+            }
+          } catch(e) {}
+        }
       }
     }
-  } catch(e) {}
-  return global.flightsCache || [];
+  } catch (e) {
+    console.log('Ошибка загрузки');
+  }
+  return global.flightsCache;
 }
 
-function saveFlights(flights) {
+async function saveFlights(flights) {
   global.flightsCache = flights;
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(flights));
-  } catch(e) {}
+    await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: CHANNEL_ID,
+          text: JSON.stringify(flights)
+        })
+      }
+    );
+  } catch (e) {
+    console.log('Ошибка сохранения');
+  }
 }
 
 function getSamaraNow() {
@@ -71,30 +98,22 @@ function formatTime(date) {
 
 function isAfter(date1, date2) {
   if (!date1 || !date2) return false;
-  const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate(), date1.getHours(), date1.getMinutes());
-  const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate(), date2.getHours(), date2.getMinutes());
-  return d1.getTime() > d2.getTime();
+  return date1.getTime() > date2.getTime();
 }
 
 function isSameOrAfter(date1, date2) {
   if (!date1 || !date2) return false;
-  const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate(), date1.getHours(), date1.getMinutes());
-  const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate(), date2.getHours(), date2.getMinutes());
-  return d1.getTime() >= d2.getTime();
+  return date1.getTime() >= date2.getTime();
 }
 
 function isSameOrBefore(date1, date2) {
   if (!date1 || !date2) return false;
-  const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate(), date1.getHours(), date1.getMinutes());
-  const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate(), date2.getHours(), date2.getMinutes());
-  return d1.getTime() <= d2.getTime();
+  return date1.getTime() <= date2.getTime();
 }
 
 function isBefore(date1, date2) {
   if (!date1 || !date2) return false;
-  const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate(), date1.getHours(), date1.getMinutes());
-  const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate(), date2.getHours(), date2.getMinutes());
-  return d1.getTime() < d2.getTime();
+  return date1.getTime() < date2.getTime();
 }
 
 function computeFlightStatus(flight) {
@@ -119,7 +138,7 @@ function computeFlightStatus(flight) {
 
   const schedDep = parseDate(flight.scheduledDeparture);
   const expectedDep = parseDate(flight.expectedDeparture);
-  if (expectedDep && schedDep && expectedDep.getTime() > schedDep.getTime() && isBefore(now, expectedDep)) return 'delayed';
+  if (expectedDep && schedDep && schedDep > schedDep && isBefore(now, expectedDep)) return 'delayed';
 
   return 'scheduled';
 }
@@ -176,8 +195,8 @@ function getFlightDay(flight) {
   return 'tomorrow';
 }
 
-app.get('/api/flights', (req, res) => {
-  const flights = loadFlights();
+app.get('/api/flights', async (req, res) => {
+  const flights = await loadFlights();
   const showDeparted = req.query.showDeparted === 'true';
   
   const sorted = [...flights].sort((a, b) => {
@@ -199,8 +218,8 @@ app.get('/api/flights', (req, res) => {
   res.json(enriched);
 });
 
-app.post('/api/flights', (req, res) => {
-  let flights = loadFlights();
+app.post('/api/flights', async (req, res) => {
+  let flights = await loadFlights();
   const flight = {
     id: Date.now().toString(),
     flightNumber: req.body.flightNumber || '',
@@ -218,24 +237,24 @@ app.post('/api/flights', (req, res) => {
     status: req.body.status || 'scheduled'
   };
   flights.push(flight);
-  saveFlights(flights);
+  await saveFlights(flights);
   res.status(201).json(flight);
 });
 
-app.put('/api/flights/:id', (req, res) => {
-  let flights = loadFlights();
+app.put('/api/flights/:id', async (req, res) => {
+  let flights = await loadFlights();
   const index = flights.findIndex(f => f.id === req.params.id);
   if (index === -1) return res.status(404).json({ error: 'Рейс не найден' });
   
   flights[index] = { ...flights[index], ...req.body, id: flights[index].id };
-  saveFlights(flights);
+  await saveFlights(flights);
   res.json(flights[index]);
 });
 
-app.delete('/api/flights/:id', (req, res) => {
-  let flights = loadFlights();
+app.delete('/api/flights/:id', async (req, res) => {
+  let flights = await loadFlights();
   flights = flights.filter(f => f.id !== req.params.id);
-  saveFlights(flights);
+  await saveFlights(flights);
   res.status(204).send();
 });
 
@@ -245,7 +264,7 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Аэропорт Симашкино на порту ${PORT}`);
+  console.log('Симашкино запущен');
 });
 
 module.exports = app;
