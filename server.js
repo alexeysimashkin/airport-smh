@@ -7,26 +7,63 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Telegram данные
 const BOT_TOKEN = '8657070527:AAFJP97c3zAjl6wxpd1fnOWaWZnOWZQLRH0';
 const CHANNEL_ID = '-1003993034048';
 
 global.flightsCache = global.flightsCache || [];
+global.pinnedMessages = global.pinnedMessages || [];
 
-// Загружаем рейсы из закреплённого сообщения
+// Максимальная длина одного сообщения (с запасом)
+const MAX_MESSAGE_LENGTH = 4000;
+
+// Загружаем рейсы из ВСЕХ закреплённых сообщений
 async function loadFlights() {
   try {
+    // Получаем информацию о чате (последнее закреплённое)
     const res = await fetch(
       `https://api.telegram.org/bot${BOT_TOKEN}/getChat?chat_id=${CHANNEL_ID}`
     );
     const data = await res.json();
     
+    let allFlights = [];
+    
     if (data.ok && data.result.pinned_message && data.result.pinned_message.text) {
-      const parsed = JSON.parse(data.result.pinned_message.text);
-      if (Array.isArray(parsed)) {
-        global.flightsCache = parsed;
-        return parsed;
+      try {
+        const firstPart = JSON.parse(data.result.pinned_message.text);
+        if (Array.isArray(firstPart)) {
+          allFlights = firstPart;
+        }
+      } catch(e) {
+        // Если не парсится — может быть ссылкой на следующую часть
+        const match = data.result.pinned_message.text.match(/\[ЧАСТЬ 1\]/);
+        if (match) {
+          // Загружаем все части через getUpdates
+          const updatesRes = await fetch(
+            `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?limit=50`
+          );
+          const updatesData = await updatesRes.json();
+          
+          if (updatesData.ok) {
+            const allTexts = [];
+            for (const update of updatesData.result) {
+              const msg = update.channel_post || update.message;
+              if (msg && String(msg.chat.id) === String(CHANNEL_ID) && msg.text) {
+                allTexts.push(msg.text);
+              }
+            }
+            // Склеиваем все части
+            const fullText = allTexts.join('').replace(/\[ЧАСТЬ \d+\]/g, '');
+            try {
+              allFlights = JSON.parse(fullText);
+            } catch(e2) {}
+          }
+        }
       }
+    }
+    
+    if (allFlights.length > 0) {
+      global.flightsCache = allFlights;
+      return allFlights;
     }
   } catch (e) {
     console.log('Ошибка загрузки:', e.message);
@@ -34,40 +71,69 @@ async function loadFlights() {
   return global.flightsCache;
 }
 
-// Сохраняем рейсы в закреплённое сообщение
+// Сохраняем рейсы в несколько закреплённых сообщений
 async function saveFlights(flights) {
   global.flightsCache = flights;
   try {
     const text = JSON.stringify(flights);
     
-    // Отправляем новое сообщение
-    const sendRes = await fetch(
-      `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: CHANNEL_ID,
-          text: text
-        })
-      }
-    );
-    const sendData = await sendRes.json();
-    
-    if (sendData.ok) {
-      // Закрепляем его
+    // Удаляем старые закреплённые сообщения (открепляем)
+    try {
       await fetch(
-        `https://api.telegram.org/bot${BOT_TOKEN}/pinChatMessage`,
+        `https://api.telegram.org/bot${BOT_TOKEN}/unpinAllChatMessages`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: CHANNEL_ID })
+        }
+      );
+    } catch(e) {}
+    
+    // Небольшая пауза
+    await new Promise(r => setTimeout(r, 500));
+    
+    // Разбиваем на части
+    const parts = [];
+    for (let i = 0; i < text.length; i += MAX_MESSAGE_LENGTH) {
+      parts.push(text.slice(i, i + MAX_MESSAGE_LENGTH));
+    }
+    
+    // Отправляем каждую часть и закрепляем
+    for (let i = 0; i < parts.length; i++) {
+      const partText = parts[i];
+      const label = parts.length > 1 ? `[ЧАСТЬ ${i + 1}]\n` : '';
+      
+      const sendRes = await fetch(
+        `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: CHANNEL_ID,
-            message_id: sendData.result.message_id,
-            disable_notification: true
+            text: label + partText
           })
         }
       );
+      const sendData = await sendRes.json();
+      
+      if (sendData.ok) {
+        // Закрепляем сообщение
+        await fetch(
+          `https://api.telegram.org/bot${BOT_TOKEN}/pinChatMessage`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: CHANNEL_ID,
+              message_id: sendData.result.message_id,
+              disable_notification: true
+            })
+          }
+        );
+        
+        // Пауза между отправками чтобы не получить бан
+        await new Promise(r => setTimeout(r, 1000));
+      }
     }
   } catch (e) {
     console.log('Ошибка сохранения:', e.message);
