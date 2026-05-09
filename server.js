@@ -1,53 +1,36 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const GIST_RAW_URL = 'https://gist.githubusercontent.com/alexeysimashkin/e80f32bcd39d132f85d0ecb4f4494033/raw/f7ed0907c45e5515319429e8c14aba6eb7b5d320/samara-flights.json';
-const GITHUB_TOKEN = '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';
-const GIST_ID = 'e80f32bcd39d132f85d0ecb4f4494033';
+const DATA_FILE = '/tmp/samara-flights.json';
 
 global.flightsCache = global.flightsCache || [];
 
-async function loadFlights() {
+function loadFlights() {
   try {
-    const res = await fetch(GIST_RAW_URL + '?t=' + Date.now());
-    const data = await res.json();
-    if (Array.isArray(data)) {
-      global.flightsCache = data;
-      return data;
+    if (fs.existsSync(DATA_FILE)) {
+      const data = fs.readFileSync(DATA_FILE, 'utf-8');
+      const flights = JSON.parse(data);
+      if (Array.isArray(flights)) {
+        global.flightsCache = flights;
+        return flights;
+      }
     }
-  } catch (e) {
-    console.log('Ошибка загрузки:', e.message);
-  }
+  } catch(e) {}
   return global.flightsCache || [];
 }
 
-async function saveFlights(flights) {
+function saveFlights(flights) {
   global.flightsCache = flights;
   try {
-    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GITHUB_TOKEN}`
-      },
-      body: JSON.stringify({
-        files: {
-          'samara-flights.json': {
-            content: JSON.stringify(flights, null, 2)
-          }
-        }
-      })
-    });
-    console.log('Сохранено в Gist');
-  } catch (e) {
-    console.log('Ошибка сохранения:', e.message);
-  }
+    fs.writeFileSync(DATA_FILE, JSON.stringify(flights));
+  } catch(e) {}
 }
 
 function getSamaraNow() {
@@ -193,8 +176,8 @@ function getFlightDay(flight) {
   return 'tomorrow';
 }
 
-app.get('/api/flights', async (req, res) => {
-  const flights = await loadFlights();
+app.get('/api/flights', (req, res) => {
+  const flights = loadFlights();
   const showDeparted = req.query.showDeparted === 'true';
   
   const sorted = [...flights].sort((a, b) => {
@@ -216,8 +199,8 @@ app.get('/api/flights', async (req, res) => {
   res.json(enriched);
 });
 
-app.post('/api/flights', async (req, res) => {
-  let flights = await loadFlights();
+app.post('/api/flights', (req, res) => {
+  let flights = loadFlights();
   const flight = {
     id: Date.now().toString(),
     flightNumber: req.body.flightNumber || '',
@@ -235,24 +218,24 @@ app.post('/api/flights', async (req, res) => {
     status: req.body.status || 'scheduled'
   };
   flights.push(flight);
-  await saveFlights(flights);
+  saveFlights(flights);
   res.status(201).json(flight);
 });
 
-app.put('/api/flights/:id', async (req, res) => {
-  let flights = await loadFlights();
+app.put('/api/flights/:id', (req, res) => {
+  let flights = loadFlights();
   const index = flights.findIndex(f => f.id === req.params.id);
   if (index === -1) return res.status(404).json({ error: 'Рейс не найден' });
   
   flights[index] = { ...flights[index], ...req.body, id: flights[index].id };
-  await saveFlights(flights);
+  saveFlights(flights);
   res.json(flights[index]);
 });
 
-app.delete('/api/flights/:id', async (req, res) => {
-  let flights = await loadFlights();
+app.delete('/api/flights/:id', (req, res) => {
+  let flights = loadFlights();
   flights = flights.filter(f => f.id !== req.params.id);
-  await saveFlights(flights);
+  saveFlights(flights);
   res.status(204).send();
 });
 
