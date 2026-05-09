@@ -19,7 +19,7 @@ const modalBody = $('modalBody');
 const modalTitle = $('modalTitle');
 const toggleDeparted = $('toggleDeparted');
 
-// Самарское время
+// Самарское время (UTC+4)
 const SAMARA_OFFSET = 4 * 60;
 function getSamaraNow() {
   const now = new Date();
@@ -27,6 +27,7 @@ function getSamaraNow() {
   return new Date(utcMs + (SAMARA_OFFSET * 60000));
 }
 
+// Часы
 setInterval(() => {
   const now = getSamaraNow();
   const h = String(now.getHours()).padStart(2, '0');
@@ -34,6 +35,7 @@ setInterval(() => {
   clockTime.textContent = `${h}:${m}`;
 }, 1000);
 
+// Парсинг даты
 function parseDate(dateStr) {
   if (!dateStr) return null;
   const [datePart, timePart] = dateStr.split('T');
@@ -42,6 +44,7 @@ function parseDate(dateStr) {
   return new Date(year, month - 1, day, hours, minutes, 0);
 }
 
+// Форматирование
 function fmtTm(s) {
   if (!s) return '—';
   const d = parseDate(s);
@@ -64,21 +67,27 @@ function fmtDateOnly(s) {
   return `${d.getDate()} ${months[d.getMonth()]}`;
 }
 
+// Загрузка данных
 async function load() {
-  const url = `${API}?showDeparted=${showDeparted}`;
-  const r = await fetch(url);
-  currentFlights = await r.json();
-  renderBoards();
-  renderAdmin();
-  const now = getSamaraNow();
-  const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-  lastUpdated.textContent = timeStr;
-  lastUpdated2.textContent = timeStr;
+  try {
+    const url = `${API}?showDeparted=${showDeparted}`;
+    const r = await fetch(url);
+    currentFlights = await r.json();
+    renderBoards();
+    renderAdmin();
+    const now = getSamaraNow();
+    const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    lastUpdated.textContent = timeStr;
+    lastUpdated2.textContent = timeStr;
+  } catch(e) {
+    console.error('Ошибка загрузки:', e);
+  }
 }
 
+// Определение класса для статуса
 function getTagClass(flight) {
   if (flight.status === 'cancelled') return 'tag-cancel';
-  if (flight.status === 'departed' || flight.computedStatus === 'departed') return 'tag-departed';
+  if (flight.status === 'departed') return 'tag-departed';
   switch(flight.computedStatus) {
     case 'checkin': return 'tag-checkin';
     case 'checkin_completed': return 'tag-checkin-end';
@@ -89,16 +98,26 @@ function getTagClass(flight) {
   }
 }
 
+// Строка рейса для таблицы
 function renderFlightRow(f) {
-  const delayed = f.expectedDeparture && parseDate(f.expectedDeparture) > parseDate(f.scheduledDeparture);
+  const schedDep = parseDate(f.scheduledDeparture);
+  const expectedDep = parseDate(f.expectedDeparture);
+  const delayed = expectedDep && schedDep && expectedDep.getTime() > schedDep.getTime();
   const cancelled = f.status === 'cancelled';
-  const departed = f.status === 'departed' || f.computedStatus === 'departed';
+  const departed = f.status === 'departed';
   
-  let timeHtml = cancelled ? `<span class="time-old">${fmtTm(f.scheduledDeparture)}</span>` :
-    (delayed && !departed) ? `<span class="time-old">${fmtTm(f.scheduledDeparture)}</span><br><span class="time-new">${fmtTm(f.expectedDeparture)}</span>` :
-    fmtTm(f.scheduledDeparture);
+  let timeHtml;
+  if (cancelled || departed) {
+    timeHtml = `<span class="time-old">${fmtTm(f.scheduledDeparture)}</span>`;
+  } else if (delayed) {
+    timeHtml = `<span class="time-old">${fmtTm(f.scheduledDeparture)}</span><br><span class="time-new">${fmtTm(f.expectedDeparture)}</span>`;
+  } else {
+    timeHtml = fmtTm(f.scheduledDeparture);
+  }
   
-  return `<tr onclick="showDetail('${f.id}')" style="${departed ? 'opacity:0.6;' : ''}">
+  const opacity = departed ? 'opacity:0.6;' : '';
+  
+  return `<tr onclick="showDetail('${f.id}')" style="${opacity}">
     <td class="time-cell">${timeHtml}</td>
     <td><div class="dest-cell"><span class="dest-name">${f.destination}</span><span class="dest-iata">${f.iataCode}</span></div></td>
     <td class="flight-num">${f.flightNumber}</td>
@@ -108,17 +127,28 @@ function renderFlightRow(f) {
   </tr>`;
 }
 
+// Отрисовка обоих табло
 function renderBoards() {
-  // Сегодня
-  const todayFlights = currentFlights.filter(f => f.flightDay === 'today' || f.flightDay === 'both');
+  // === СЕГОДНЯ ===
+  // Показываем: today + both + (departed если включён показ)
+  let todayFlights = currentFlights.filter(f => {
+    if (f.flightDay === 'today' || f.flightDay === 'both') return true;
+    if (showDeparted && f.flightDay === 'departed') return true;
+    return false;
+  });
+  
   if (todayFlights.length === 0) {
     flightsToday.innerHTML = `<tr class="empty"><td colspan="6"><div class="empty-msg"><i class="fas fa-plane"></i><p>Нет рейсов на сегодня</p></div></td></tr>`;
   } else {
     flightsToday.innerHTML = todayFlights.map(renderFlightRow).join('');
   }
   
-  // Завтра
-  const tomorrowFlights = currentFlights.filter(f => f.flightDay === 'tomorrow' || f.flightDay === 'both');
+  // === ЗАВТРА ===
+  // Показываем: tomorrow + both (вылетевшие на завтра не попадают)
+  let tomorrowFlights = currentFlights.filter(f => {
+    return f.flightDay === 'tomorrow' || f.flightDay === 'both';
+  });
+  
   if (tomorrowFlights.length === 0) {
     flightsTomorrow.innerHTML = `<tr class="empty"><td colspan="6"><div class="empty-msg"><i class="fas fa-plane"></i><p>Нет рейсов на завтра</p></div></td></tr>`;
   } else {
@@ -126,6 +156,7 @@ function renderBoards() {
   }
 }
 
+// Отрисовка списка в админке
 function renderAdmin() {
   if (!currentFlights.length) {
     adminList.innerHTML = '<p style="text-align:center;color:var(--gray-400);padding:20px;">Нет рейсов</p>';
@@ -147,22 +178,26 @@ function renderAdmin() {
   `).join('');
 }
 
-// Детали рейса
+// ==================== ДЕТАЛИ РЕЙСА ====================
 window.showDetail = function(id) {
   const f = currentFlights.find(x => x.id === id);
   if (!f) return;
   
   modalTitle.textContent = `Рейс ${f.flightNumber}`;
   
-  const delayed = f.expectedDeparture && parseDate(f.expectedDeparture) > parseDate(f.scheduledDeparture);
-  const delayHtml = delayed && f.status !== 'departed' ? `
+  const expectedDep = parseDate(f.expectedDeparture);
+  const schedDep = parseDate(f.scheduledDeparture);
+  const delayed = expectedDep && schedDep && expectedDep.getTime() > schedDep.getTime();
+  const departed = f.status === 'departed';
+  
+  const delayHtml = (delayed && !departed) ? `
     <div class="modal-delay-banner">
       <i class="fas fa-clock"></i>
       <span>Задержан до ${fmtTm(f.expectedDeparture)}</span>
     </div>` : '';
 
-  const doneCheckIn = ['checkin_completed','boarding','boarding_completed','departed'].includes(f.computedStatus);
-  const activeBoarding = ['boarding','boarding_completed','departed'].includes(f.computedStatus);
+  const doneCheckIn = ['checkin_completed','boarding','boarding_completed'].includes(f.computedStatus) || departed;
+  const activeBoarding = ['boarding','boarding_completed'].includes(f.computedStatus) || departed;
 
   modalBody.innerHTML = `
     <div>
@@ -247,12 +282,27 @@ window.showDetail = function(id) {
   document.body.style.overflow = 'hidden';
 };
 
-// Закрытие модалки
-$('modalClose').onclick = () => { modalOverlay.classList.remove('show'); document.body.style.overflow = ''; };
-modalOverlay.onclick = e => { if (e.target === modalOverlay) { modalOverlay.classList.remove('show'); document.body.style.overflow = ''; } };
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { modalOverlay.classList.remove('show'); document.body.style.overflow = ''; } });
+// ==================== МОДАЛКА ====================
+$('modalClose').onclick = () => { 
+  modalOverlay.classList.remove('show'); 
+  document.body.style.overflow = ''; 
+};
 
-// Табы
+modalOverlay.onclick = e => { 
+  if (e.target === modalOverlay) { 
+    modalOverlay.classList.remove('show'); 
+    document.body.style.overflow = ''; 
+  }
+};
+
+document.addEventListener('keydown', e => { 
+  if (e.key === 'Escape') { 
+    modalOverlay.classList.remove('show'); 
+    document.body.style.overflow = ''; 
+  }
+});
+
+// ==================== ТАБЫ ====================
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -263,19 +313,35 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
-// Показать/скрыть вылетевшие
+// ==================== ВЫЛЕТЕВШИЕ ====================
 toggleDeparted.addEventListener('click', () => {
   showDeparted = !showDeparted;
   toggleDeparted.classList.toggle('active', showDeparted);
-  toggleDeparted.innerHTML = showDeparted ? '<i class="fas fa-eye-slash"></i> Скрыть вылетевшие' : '<i class="fas fa-eye"></i> Показать вылетевшие';
+  toggleDeparted.innerHTML = showDeparted 
+    ? '<i class="fas fa-eye-slash"></i> Скрыть вылетевшие' 
+    : '<i class="fas fa-eye"></i> Показать вылетевшие';
   load();
 });
 
-// Админка
-$('adminToggle').onclick = () => { adminPanel.style.display = adminPanel.style.display !== 'none' ? 'none' : 'block'; };
-$('addFlightBtn').onclick = () => { editingId = null; formTitle.textContent = 'Новый рейс'; $('flightFormInner').reset(); $('flightId').value = ''; flightForm.style.display = 'block'; };
-$('cancelForm').onclick = () => { flightForm.style.display = 'none'; };
+// ==================== АДМИНКА ====================
+$('adminToggle').onclick = () => { 
+  adminPanel.style.display = adminPanel.style.display !== 'none' ? 'none' : 'block'; 
+};
 
+$('addFlightBtn').onclick = () => { 
+  editingId = null; 
+  formTitle.textContent = 'Новый рейс'; 
+  $('flightFormInner').reset(); 
+  $('flightId').value = ''; 
+  $('status').value = 'scheduled';
+  flightForm.style.display = 'block'; 
+};
+
+$('cancelForm').onclick = () => { 
+  flightForm.style.display = 'none'; 
+};
+
+// Редактирование
 window.editFlight = function(id) {
   const f = currentFlights.find(x => x.id === id);
   if (!f) return;
@@ -299,12 +365,14 @@ window.editFlight = function(id) {
   flightForm.scrollIntoView({ behavior: 'smooth' });
 };
 
+// Удаление
 window.deleteFlight = async function(id) {
   if (!confirm('Удалить рейс?')) return;
   await fetch(`${API}/${id}`, { method:'DELETE' });
   load();
 };
 
+// Сохранение
 $('flightFormInner').onsubmit = async function(e) {
   e.preventDefault();
   const body = {
@@ -323,11 +391,18 @@ $('flightFormInner').onsubmit = async function(e) {
     status: $('status').value
   };
   const url = editingId ? `${API}/${editingId}` : API;
-  await fetch(url, { method: editingId?'PUT':'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  await fetch(url, { 
+    method: editingId?'PUT':'POST', 
+    headers:{'Content-Type':'application/json'}, 
+    body:JSON.stringify(body) 
+  });
   flightForm.style.display = 'none';
   editingId = null;
   load();
 };
 
+// Автообновление каждые 30 секунд
 setInterval(load, 30000);
+
+// Первая загрузка
 load();
