@@ -7,147 +7,49 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const BOT_TOKEN = '8657070527:AAFJP97c3zAjl6wxpd1fnOWaWZnOWZQLRH0';
-const CHANNEL_ID = '-1003993034048';
+const GIST_RAW_URL = 'https://gist.githubusercontent.com/alexeysimashkin/e80f32bcd39d132f85d0ecb4f4494033/raw/f7ed0907c45e5515319429e8c14aba6eb7b5d320/samara-flights.json';
+const GITHUB_TOKEN = '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';
+const GIST_ID = 'e80f32bcd39d132f85d0ecb4f4494033';
 
 global.flightsCache = global.flightsCache || [];
-global.savedMessageId = global.savedMessageId || null;
 
-const MAX_MESSAGE_LENGTH = 4000;
-
-// Загружаем рейсы по ID сохранённого сообщения
 async function loadFlights() {
   try {
-    // Если знаем ID сообщения — читаем напрямую
-    if (global.savedMessageId) {
-      // Получаем все закреплённые сообщения через getChat
-      const chatRes = await fetch(
-        `https://api.telegram.org/bot${BOT_TOKEN}/getChat?chat_id=${CHANNEL_ID}`
-      );
-      const chatData = await chatRes.json();
-      
-      if (chatData.ok && chatData.result.pinned_message && chatData.result.pinned_message.text) {
-        const allText = chatData.result.pinned_message.text;
-        const cleanText = allText.replace(/\[ЧАСТЬ \d+\]/g, '');
-        
-        try {
-          const flights = JSON.parse(cleanText);
-          if (Array.isArray(flights) && flights.length > 0) {
-            global.flightsCache = flights;
-            return flights;
-          }
-        } catch(e) {
-          console.log('Ошибка парсинга JSON из закреплённого');
-        }
-      }
+    const res = await fetch(GIST_RAW_URL + '?t=' + Date.now());
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      global.flightsCache = data;
+      return data;
     }
-    
-    // Запасной вариант: ищем через getUpdates
-    const updatesRes = await fetch(
-      `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?limit=50`
-    );
-    const updatesData = await updatesRes.json();
-    
-    if (updatesData.ok) {
-      let allTexts = [];
-      for (const update of updatesData.result) {
-        const msg = update.channel_post;
-        if (msg && String(msg.chat.id) === String(CHANNEL_ID) && msg.text) {
-          allTexts.push(msg.text);
-          // Запоминаем ID последнего сообщения
-          global.savedMessageId = msg.message_id;
-        }
-      }
-      
-      if (allTexts.length > 0) {
-        const fullText = allTexts.join('');
-        const cleanText = fullText.replace(/\[ЧАСТЬ \d+\]/g, '');
-        
-        try {
-          const flights = JSON.parse(cleanText);
-          if (Array.isArray(flights) && flights.length > 0) {
-            global.flightsCache = flights;
-            return flights;
-          }
-        } catch(e) {
-          console.log('Ошибка парсинга из getUpdates');
-        }
-      }
-    }
-    
   } catch (e) {
     console.log('Ошибка загрузки:', e.message);
   }
-  
-  // Возвращаем кеш если ничего не нашли
   return global.flightsCache || [];
 }
 
-// Сохраняем рейсы
 async function saveFlights(flights) {
   global.flightsCache = flights;
-  
   try {
-    const text = JSON.stringify(flights);
-    
-    // Разбиваем на части если нужно
-    const parts = [];
-    for (let i = 0; i < text.length; i += MAX_MESSAGE_LENGTH) {
-      parts.push(text.slice(i, i + MAX_MESSAGE_LENGTH));
-    }
-    
-    // Отправляем ОДНО сообщение со всеми данными (или несколько частей)
-    let lastMessageId = null;
-    
-    for (let i = 0; i < parts.length; i++) {
-      const label = parts.length > 1 ? `[ЧАСТЬ ${i + 1}]\n` : '';
-      
-      const sendRes = await fetch(
-        `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: CHANNEL_ID,
-            text: label + parts[i]
-          })
-        }
-      );
-      const sendData = await sendRes.json();
-      
-      if (sendData.ok) {
-        lastMessageId = sendData.result.message_id;
-        
-        // Закрепляем
-        await fetch(
-          `https://api.telegram.org/bot${BOT_TOKEN}/pinChatMessage`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: CHANNEL_ID,
-              message_id: lastMessageId,
-              disable_notification: true
-            })
+    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GITHUB_TOKEN}`
+      },
+      body: JSON.stringify({
+        files: {
+          'samara-flights.json': {
+            content: JSON.stringify(flights, null, 2)
           }
-        );
-        
-        // Пауза
-        await new Promise(r => setTimeout(r, 1500));
-      }
-    }
-    
-    // Сохраняем ID первого сообщения
-    if (lastMessageId) {
-      global.savedMessageId = lastMessageId;
-    }
-    
+        }
+      })
+    });
+    console.log('Сохранено в Gist');
   } catch (e) {
     console.log('Ошибка сохранения:', e.message);
   }
 }
 
-// Самарское время
 function getSamaraNow() {
   const now = new Date();
   const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -291,7 +193,6 @@ function getFlightDay(flight) {
   return 'tomorrow';
 }
 
-// API
 app.get('/api/flights', async (req, res) => {
   const flights = await loadFlights();
   const showDeparted = req.query.showDeparted === 'true';
