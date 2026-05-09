@@ -8,7 +8,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const GIST_RAW_URL = 'https://gist.githubusercontent.com/alexeysimashkin/e80f32bcd39d132f85d0ecb4f4494033/raw/f7ed0907c45e5515319429e8c14aba6eb7b5d320/samara-flights.json';
-const GITHUB_TOKEN = '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';
+const GITHUB_TOKEN = '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';
 const GIST_ID = 'e80f32bcd39d132f85d0ecb4f4494033';
 
 global.flightsCache = global.flightsCache || [];
