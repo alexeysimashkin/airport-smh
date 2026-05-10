@@ -142,16 +142,17 @@ function renderAll() {
     `).join('');
   }
   
+  // Сегодня
   const todayFlights = currentFlights.filter(f => {
-    const day = getFlightDay(f);
     if (f.status === 'departed') return showDeparted;
-    return day === 'today';
+    return getFlightDay(f) === 'today';
   });
   
   flightsToday.innerHTML = todayFlights.length === 0
     ? `<tr class="empty"><td colspan="6"><div class="empty-msg"><i class="fas fa-plane"></i><p>Нет рейсов на сегодня</p></div></td></tr>`
     : todayFlights.map(renderFlightRow).join('');
   
+  // Завтра
   const tomorrowFlights = currentFlights.filter(f => getFlightDay(f) === 'tomorrow');
   
   flightsTomorrow.innerHTML = tomorrowFlights.length === 0
