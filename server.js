@@ -15,20 +15,33 @@ const RAW_URL = `https://gist.githubusercontent.com/alexeysimashkin/${GIST_ID}/r
 async function loadFlights() {
   try {
     const r = await fetch(RAW_URL + '?t=' + Date.now());
-    const data = await r.json();
-    if (Array.isArray(data)) return data;
-  } catch(e) {}
-  return [];
+    const text = await r.text();
+    if (!text || text === 'null') return [];
+    const data = JSON.parse(text);
+    return Array.isArray(data) ? data : [];
+  } catch(e) {
+    return [];
+  }
 }
 
 async function saveFlights(flights) {
   try {
-    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GITHUB_TOKEN}` },
-      body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(flights) } } })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GITHUB_TOKEN}`
+      },
+      body: JSON.stringify({
+        files: {
+          [GIST_FILE]: { content: JSON.stringify(flights) }
+        }
+      })
     });
-  } catch(e) {}
+    if (!res.ok) console.log('Ошибка сохранения:', res.status);
+  } catch(e) {
+    console.log('Ошибка:', e.message);
+  }
 }
 
 app.get('/api/flights', async (req, res) => {
