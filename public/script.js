@@ -124,7 +124,6 @@ function renderFlightRow(f) {
 }
 
 function renderAll() {
-  // Админка
   if (!currentFlights.length) {
     adminList.innerHTML = '<p style="text-align:center;color:var(--gray-400);padding:20px;">Нет рейсов</p>';
   } else {
@@ -143,30 +142,21 @@ function renderAll() {
     `).join('');
   }
   
-  // Сегодня
   const todayFlights = currentFlights.filter(f => {
     const day = getFlightDay(f);
     if (f.status === 'departed') return showDeparted;
     return day === 'today';
   });
   
-  if (todayFlights.length === 0) {
-    flightsToday.innerHTML = `<tr class="empty"><td colspan="6"><div class="empty-msg"><i class="fas fa-plane"></i><p>Нет рейсов на сегодня</p></div></td></tr>`;
-  } else {
-    flightsToday.innerHTML = todayFlights.map(renderFlightRow).join('');
-  }
+  flightsToday.innerHTML = todayFlights.length === 0
+    ? `<tr class="empty"><td colspan="6"><div class="empty-msg"><i class="fas fa-plane"></i><p>Нет рейсов на сегодня</p></div></td></tr>`
+    : todayFlights.map(renderFlightRow).join('');
   
-  // Завтра
-  const tomorrowFlights = currentFlights.filter(f => {
-    const day = getFlightDay(f);
-    return day === 'tomorrow';
-  });
+  const tomorrowFlights = currentFlights.filter(f => getFlightDay(f) === 'tomorrow');
   
-  if (tomorrowFlights.length === 0) {
-    flightsTomorrow.innerHTML = `<tr class="empty"><td colspan="6"><div class="empty-msg"><i class="fas fa-plane"></i><p>Нет рейсов на завтра</p></div></td></tr>`;
-  } else {
-    flightsTomorrow.innerHTML = tomorrowFlights.map(renderFlightRow).join('');
-  }
+  flightsTomorrow.innerHTML = tomorrowFlights.length === 0
+    ? `<tr class="empty"><td colspan="6"><div class="empty-msg"><i class="fas fa-plane"></i><p>Нет рейсов на завтра</p></div></td></tr>`
+    : tomorrowFlights.map(renderFlightRow).join('');
 }
 
 window.showDetail = function(id) {
@@ -176,19 +166,13 @@ window.showDetail = function(id) {
   modalTitle.textContent = `Рейс ${f.flightNumber}`;
   
   const delayed = f.expectedDeparture && new Date(f.expectedDeparture) > new Date(f.scheduledDeparture);
-  const delayHtml = delayed ? `
-    <div class="modal-delay-banner">
-      <i class="fas fa-clock"></i>
-      <span>Задержан до ${fmtTm(f.expectedDeparture)}</span>
-    </div>` : '';
+  const delayHtml = delayed ? `<div class="modal-delay-banner"><i class="fas fa-clock"></i><span>Задержан до ${fmtTm(f.expectedDeparture)}</span></div>` : '';
   
   modalBody.innerHTML = `
     <div class="modal-flight-top">
       <div>
         <div class="modal-flight-num">${f.flightNumber}</div>
-        <div class="modal-flight-dest">${f.destination}</div>
         <div class="modal-flight-airline">Выполняет: ${f.airline || '—'}</div>
-        <div class="modal-flight-iata">Код IATA: ${f.iataCode || ''}</div>
       </div>
       <span class="status-tag ${getTagClass(f)}" style="font-size:14px;">${(f.statusText || 'По расписанию').replace(/\n/g,'<br>')}</span>
     </div>
@@ -198,7 +182,6 @@ window.showDetail = function(id) {
       <span class="modal-fs-iata">${f.iataCode || ''}</span>
     </div>
     <div class="modal-fs-info-row"><span>Россия</span></div>
-    
     <div class="modal-fs-table">
       <div class="modal-fs-table-row header">
         <div>Дата вылета</div>
@@ -215,7 +198,6 @@ window.showDetail = function(id) {
         <div><strong>А</strong></div>
       </div>
     </div>
-    
     <div class="modal-fs-timeline">
       <h3>Регистрация</h3>
       <div class="timeline-items">
@@ -243,11 +225,9 @@ window.showDetail = function(id) {
         </div>` : ''}
       </div>
     </div>
-    
     <div class="modal-fs-status">
       <span class="status-tag ${getTagClass(f)}" style="font-size:15px;padding:10px 24px;">${(f.statusText || 'По расписанию').replace(/\n/g,'<br>')}</span>
     </div>
-    
     <div class="modal-fs-extra">
       <div class="modal-fs-extra-item"><span class="extra-label">Авиакомпания</span><span class="extra-value">${f.airline || '—'}</span></div>
       <div class="modal-fs-extra-item"><span class="extra-label">Вылет по расписанию</span><span class="extra-value">${fmtDt(f.scheduledDeparture)}</span></div>
