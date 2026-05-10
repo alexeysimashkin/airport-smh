@@ -1,95 +1,64 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
-const GIST_ID = 'e80f32bcd39d132f85d0ecb4f4494033';
-const GIST_FILE = 'samara-flights.json';
-const GITHUB_TOKEN = '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';
-const RAW_URL = `https://gist.githubusercontent.com/alexeysimashkin/${GIST_ID}/raw/${GIST_FILE}`;
-
+// Загружаем рейсы из ВСЕХ сообщений в канале
 async function loadFlights() {
   try {
-    const r = await fetch(RAW_URL + '?t=' + Date.now());
-    const text = await r.text();
-    if (!text || text === 'null') return [];
-    const data = JSON.parse(text);
-    return Array.isArray(data) ? data : [];
-  } catch(e) {
-    return [];
-  }
-}
-
-async function saveFlights(flights) {
-  try {
-    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GITHUB_TOKEN}`
-      },
-      body: JSON.stringify({
-        files: {
-          [GIST_FILE]: { content: JSON.stringify(flights) }
+    // Способ 1: пробуем загрузить через закреплённое сообщение
+    const chatRes = await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/getChat?chat_id=${CHANNEL_ID}`
+    );
+    const chatData = await chatRes.json();
+    
+    // Способ 2: получаем историю сообщений (последние 20)
+    const updatesRes = await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?limit=30&allowed_updates=["channel_post","message"]`
+    );
+    const updatesData = await updatesRes.json();
+    
+    let allText = '';
+    
+    // Собираем текст из всех найденных сообщений
+    if (updatesData.ok && updatesData.result.length > 0) {
+      for (const update of updatesData.result) {
+        const msg = update.channel_post || update.message;
+        if (msg && String(msg.chat.id) === String(CHANNEL_ID) && msg.text) {
+          allText += msg.text;
         }
-      })
-    });
-    if (!res.ok) console.log('Ошибка сохранения:', res.status);
-  } catch(e) {
-    console.log('Ошибка:', e.message);
+      }
+    }
+    
+    // Очищаем от меток частей
+    const cleanText = allText.replace(/\[ЧАСТЬ \d+\]/g, '');
+    
+    if (cleanText.length > 10) {
+      try {
+        const flights = JSON.parse(cleanText);
+        if (Array.isArray(flights) && flights.length > 0) {
+          global.flightsCache = flights;
+          return flights;
+        }
+      } catch(e) {
+        console.log('Ошибка парсинга текста из getUpdates');
+      }
+    }
+    
+    // Способ 3: закреплённое сообщение (если getUpdates не сработал)
+    if (chatData.ok && chatData.result.pinned_message && chatData.result.pinned_message.text) {
+      const pinnedText = chatData.result.pinned_message.text.replace(/\[ЧАСТЬ \d+\]/g, '');
+      try {
+        const flights = JSON.parse(pinnedText);
+        if (Array.isArray(flights) && flights.length > 0) {
+          global.flightsCache = flights;
+          return flights;
+        }
+      } catch(e) {}
+    }
+    
+    // Если ничего не нашли — возвращаем кеш
+    if (global.flightsCache.length > 0) {
+      return global.flightsCache;
+    }
+    
+  } catch (e) {
+    console.log('Ошибка загрузки:', e.message);
   }
+  return global.flightsCache || [];
 }
-
-app.get('/api/flights', async (req, res) => {
-  const flights = await loadFlights();
-  res.json(flights);
-});
-
-app.post('/api/flights', async (req, res) => {
-  const flights = await loadFlights();
-  const flight = {
-    id: Date.now().toString(),
-    flightNumber: req.body.flightNumber || '',
-    destination: req.body.destination || '',
-    iataCode: req.body.iataCode || '',
-    airline: req.body.airline || '',
-    scheduledDeparture: req.body.scheduledDeparture || null,
-    expectedDeparture: req.body.expectedDeparture || null,
-    checkInStart: req.body.checkInStart || null,
-    checkInEnd: req.body.checkInEnd || null,
-    checkInCounters: req.body.checkInCounters || '',
-    boardingStart: req.body.boardingStart || null,
-    boardingEnd: req.body.boardingEnd || null,
-    boardingGate: req.body.boardingGate || '',
-    status: req.body.status || 'scheduled'
-  };
-  flights.push(flight);
-  await saveFlights(flights);
-  res.status(201).json(flight);
-});
-
-app.put('/api/flights/:id', async (req, res) => {
-  const flights = await loadFlights();
-  const i = flights.findIndex(f => String(f.id) === String(req.params.id));
-  if (i === -1) return res.status(404).json({ error: 'Не найден' });
-  flights[i] = { ...flights[i], ...req.body, id: flights[i].id };
-  await saveFlights(flights);
-  res.json(flights[i]);
-});
-
-app.delete('/api/flights/:id', async (req, res) => {
-  let flights = await loadFlights();
-  flights = flights.filter(f => String(f.id) !== String(req.params.id));
-  await saveFlights(flights);
-  res.status(204).send();
-});
-
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('OK'));
-module.exports = app;
