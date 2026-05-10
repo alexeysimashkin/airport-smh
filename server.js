@@ -92,8 +92,8 @@ function parseFlight(str) {
   else if (daysStr.includes('воскресенье')) days = ['вс'];
 
   const [h, m] = time.split(':').map(Number);
-  const depDate = new Date();
-  depDate.setHours(h, m, 0, 0);
+  const now = getSamaraNow();
+  const depDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
   const checkInStart = new Date(depDate.getTime() - 3 * 3600000);
   const checkInEnd = new Date(depDate.getTime() - 40 * 60000);
 
@@ -180,9 +180,15 @@ function getStatusText(flight) {
 app.get('/api/flights', async (req, res) => {
   let flights = await loadFlights();
   const showDeparted = req.query.showDeparted === 'true';
-  flights = flights.filter(f => fliesToday(f) || f.status === 'departed');
+  
+  // Показываем все рейсы: и которые летают сегодня, и вылетевшие/отменённые
+  flights = flights.filter(f => {
+    if (f.status === 'departed') return showDeparted;
+    if (f.status === 'cancelled') return true;
+    return fliesToday(f);
+  });
+  
   const enriched = flights
-    .filter(f => f.status !== 'departed' || showDeparted)
     .map(f => ({ ...f, computedStatus: computeFlightStatus(f), statusText: getStatusText(f) }))
     .sort((a, b) => (a.scheduledTime || '').localeCompare(b.scheduledTime || ''));
   res.json(enriched);
