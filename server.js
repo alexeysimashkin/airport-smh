@@ -10,21 +10,18 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-// Создаём таблицу при запуске
 pool.query(`
   CREATE TABLE IF NOT EXISTS flights (
     id TEXT PRIMARY KEY,
     data JSONB NOT NULL
   )
-`).catch(e => console.log('Ошибка таблицы:', e.message));
+`).catch(e => console.log(e));
 
 async function loadFlights() {
   try {
     const r = await pool.query('SELECT data FROM flights');
     return r.rows.map(row => row.data);
-  } catch(e) {
-    return [];
-  }
+  } catch(e) { return []; }
 }
 
 async function saveFlights(flights) {
@@ -36,9 +33,64 @@ async function saveFlights(flights) {
   } catch(e) {}
 }
 
+// Самарское время
+function getSamaraNow() {
+  const now = new Date();
+  const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utcMs + (4 * 3600000));
+}
+
+function computeStatus(flight) {
+  if (flight.status === 'cancelled') return 'cancelled';
+  if (flight.status === 'departed') return 'departed';
+  
+  const now = getSamaraNow();
+  const ci = flight.checkInStart ? new Date(flight.checkInStart) : null;
+  const ce = flight.checkInEnd ? new Date(flight.checkInEnd) : null;
+  const bs = flight.boardingStart ? new Date(flight.boardingStart) : null;
+  const be = flight.boardingEnd ? new Date(flight.boardingEnd) : null;
+  
+  if (be && now > be) return 'boarding_completed';
+  if (bs && be && now >= bs && now <= be) return 'boarding';
+  if (ce && now > ce && (!bs || now < bs)) return 'checkin_completed';
+  if (ci && ce && now >= ci && now <= ce) return 'checkin';
+  
+  const sched = flight.scheduledDeparture ? new Date(flight.scheduledDeparture) : null;
+  const exp = flight.expectedDeparture ? new Date(flight.expectedDeparture) : null;
+  if (exp && sched && exp > sched && now < exp) return 'delayed';
+  
+  return 'scheduled';
+}
+
+function getStatusText(flight) {
+  if (flight.status === 'cancelled') return 'Отменён';
+  if (flight.status === 'departed') return 'Вылетел';
+  
+  const s = computeStatus(flight);
+  const exp = flight.expectedDeparture ? new Date(flight.expectedDeparture) : null;
+  const time = exp ? `${String(exp.getHours()).padStart(2,'0')}:${String(exp.getMinutes()).padStart(2,'0')}` : '';
+  
+  if (s === 'delayed') return `Задержан до ${time}`;
+  if (s === 'checkin') return 'Регистрация';
+  if (s === 'checkin_completed') return 'Регистрация закончена';
+  if (s === 'boarding') return 'Посадка';
+  if (s === 'boarding_completed') return 'Посадка закончена';
+  return 'По расписанию';
+}
+
+function enrich(flight) {
+  return {
+    ...flight,
+    computedStatus: computeStatus(flight),
+    statusText: getStatusText(flight)
+  };
+}
+
 app.get('/api/flights', async (req, res) => {
-  const flights = await loadFlights();
-  res.json(flights);
+  const flights = (await loadFlights()).map(enrich);
+  const showDeparted = req.query.showDeparted === 'true';
+  const filtered = flights.filter(f => f.status !== 'departed' || showDeparted);
+  res.json(filtered);
 });
 
 app.post('/api/flights', async (req, res) => {
@@ -61,7 +113,7 @@ app.post('/api/flights', async (req, res) => {
   };
   flights.push(flight);
   await saveFlights(flights);
-  res.status(201).json(flight);
+  res.status(201).json(enrich(flight));
 });
 
 app.put('/api/flights/:id', async (req, res) => {
@@ -70,7 +122,7 @@ app.put('/api/flights/:id', async (req, res) => {
   if (i === -1) return res.status(404).json({ error: 'Не найден' });
   flights[i] = { ...flights[i], ...req.body, id: flights[i].id };
   await saveFlights(flights);
-  res.json(flights[i]);
+  res.json(enrich(flights[i]));
 });
 
 app.delete('/api/flights/:id', async (req, res) => {
@@ -83,5 +135,5 @@ app.delete('/api/flights/:id', async (req, res) => {
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Самара OK'));
+app.listen(PORT, () => console.log('OK'));
 module.exports = app;
