@@ -33,11 +33,35 @@ async function saveFlights(flights) {
   } catch(e) {}
 }
 
-// Самарское время
 function getSamaraNow() {
   const now = new Date();
   const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
   return new Date(utcMs + (4 * 3600000));
+}
+
+function getTodayStart() {
+  const now = getSamaraNow();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+}
+
+function getTomorrowStart() {
+  const t = getTodayStart();
+  return new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1, 0, 0, 0);
+}
+
+function getFlightDay(f) {
+  // Если есть ожидаемое время — используем его, иначе плановое
+  const dep = f.expectedDeparture 
+    ? new Date(f.expectedDeparture) 
+    : new Date(f.scheduledDeparture);
+  
+  if (!dep || isNaN(dep.getTime())) return 'today';
+  
+  const todayStart = getTodayStart();
+  const tomorrowStart = getTomorrowStart();
+  
+  if (dep >= tomorrowStart) return 'tomorrow';
+  return 'today';
 }
 
 function computeStatus(flight) {
@@ -81,6 +105,7 @@ function getStatusText(flight) {
 function enrich(flight) {
   return {
     ...flight,
+    flightDay: getFlightDay(flight),
     computedStatus: computeStatus(flight),
     statusText: getStatusText(flight)
   };
@@ -88,9 +113,7 @@ function enrich(flight) {
 
 app.get('/api/flights', async (req, res) => {
   const flights = (await loadFlights()).map(enrich);
-  const showDeparted = req.query.showDeparted === 'true';
-  const filtered = flights.filter(f => f.status !== 'departed' || showDeparted);
-  res.json(filtered);
+  res.json(flights);
 });
 
 app.post('/api/flights', async (req, res) => {
