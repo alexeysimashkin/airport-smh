@@ -50,7 +50,6 @@ function getTomorrowStart() {
 }
 
 function getFlightDay(f) {
-  // Если есть ожидаемое время — используем его, иначе плановое
   const dep = f.expectedDeparture 
     ? new Date(f.expectedDeparture) 
     : new Date(f.scheduledDeparture);
@@ -112,7 +111,14 @@ function enrich(flight) {
 }
 
 app.get('/api/flights', async (req, res) => {
-  const flights = (await loadFlights()).map(enrich);
+  let flights = (await loadFlights()).map(enrich);
+  
+  flights.sort((a, b) => {
+    const timeA = a.scheduledDeparture ? new Date(a.scheduledDeparture).getTime() : 0;
+    const timeB = b.scheduledDeparture ? new Date(b.scheduledDeparture).getTime() : 0;
+    return timeA - timeB;
+  });
+  
   res.json(flights);
 });
 
