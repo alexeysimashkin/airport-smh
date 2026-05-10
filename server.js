@@ -7,6 +7,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Gist
 const GIST_ID = 'e80f32bcd39d132f85d0ecb4f4494033';
 const GIST_FILE = 'samara-flights.json';
 const GITHUB_TOKEN = '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';
@@ -117,18 +118,26 @@ function parseFlight(str) {
   };
 }
 
+let cachedFlights = null;
+
 async function loadFlights() {
+  if (cachedFlights) return cachedFlights;
   try {
     const r = await fetch(RAW_URL + '?t=' + Date.now());
     const data = await r.json();
-    if (Array.isArray(data) && data.length > 0) return data;
+    if (Array.isArray(data) && data.length > 0) {
+      cachedFlights = data;
+      return data;
+    }
   } catch(e) {}
   const base = RAW_FLIGHTS.map(parseFlight);
+  cachedFlights = base;
   await saveFlights(base);
   return base;
 }
 
 async function saveFlights(flights) {
+  cachedFlights = flights;
   try {
     await fetch(`https://api.github.com/gists/${GIST_ID}`, {
       method: 'PATCH',
@@ -180,14 +189,13 @@ function getStatusText(flight) {
 app.get('/api/flights', async (req, res) => {
   let flights = await loadFlights();
   const showDeparted = req.query.showDeparted === 'true';
-  
-  // Показываем все рейсы: и которые летают сегодня, и вылетевшие/отменённые
+
   flights = flights.filter(f => {
     if (f.status === 'departed') return showDeparted;
     if (f.status === 'cancelled') return true;
     return fliesToday(f);
   });
-  
+
   const enriched = flights
     .map(f => ({ ...f, computedStatus: computeFlightStatus(f), statusText: getStatusText(f) }))
     .sort((a, b) => (a.scheduledTime || '').localeCompare(b.scheduledTime || ''));
@@ -195,9 +203,9 @@ app.get('/api/flights', async (req, res) => {
 });
 
 app.post('/api/flights', async (req, res) => {
-  const flights = await loadFlights();
+  let flights = await loadFlights();
   const flight = {
-    id: req.body.id || Date.now().toString(),
+    id: Date.now().toString(),
     flightNumber: req.body.flightNumber || '',
     destination: req.body.destination || '',
     iataCode: req.body.iataCode || '',
@@ -220,8 +228,8 @@ app.post('/api/flights', async (req, res) => {
 });
 
 app.put('/api/flights/:id', async (req, res) => {
-  const flights = await loadFlights();
-  const i = flights.findIndex(f => f.id === req.params.id);
+  let flights = await loadFlights();
+  const i = flights.findIndex(f => String(f.id) === String(req.params.id));
   if (i === -1) return res.status(404).json({ error: 'Не найден' });
   flights[i] = { ...flights[i], ...req.body, id: flights[i].id };
   await saveFlights(flights);
@@ -230,7 +238,9 @@ app.put('/api/flights/:id', async (req, res) => {
 
 app.delete('/api/flights/:id', async (req, res) => {
   let flights = await loadFlights();
-  flights = flights.filter(f => f.id !== req.params.id);
+  const before = flights.length;
+  flights = flights.filter(f => String(f.id) !== String(req.params.id));
+  if (flights.length === before) return res.status(404).json({ error: 'Не найден' });
   await saveFlights(flights);
   res.status(204).send();
 });
