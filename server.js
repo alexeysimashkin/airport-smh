@@ -1,23 +1,19 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ========== GITHUB GIST ==========
 const GIST_ID = 'e80f32bcd39d132f85d0ecb4f4494033';
 const GIST_FILE = 'samara-flights.json';
 const GITHUB_TOKEN = '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';
 const RAW_URL = `https://gist.githubusercontent.com/alexeysimashkin/${GIST_ID}/raw/${GIST_FILE}`;
 
-// Авиакомпании
 const AIRLINES = { 'AS': 'ASO Airlines', 'NS': 'Noris', '6N': 'Severavia' };
 
-// Все 47 рейсов
 const RAW_FLIGHTS = [
   "00:00 AS-2819 Москва SVO ежедневно",
   "02:30 AS-987 Дубай DXB ежедневно",
@@ -94,13 +90,36 @@ function parseFlight(str) {
   else if (daysStr.includes('пятница')) days = ['пт'];
   else if (daysStr.includes('суббота')) days = ['сб'];
   else if (daysStr.includes('воскресенье')) days = ['вс'];
-  return { id: flightNum, flightNumber: flightNum, destination, iataCode: iata, airline, scheduledTime: time, days, status: 'scheduled', checkInStart: null, checkInEnd: null, checkInCounters: '', boardingStart: null, boardingEnd: null, boardingGate: '', expectedDeparture: null, scheduledDeparture: null };
+
+  const [h, m] = time.split(':').map(Number);
+  const depDate = new Date();
+  depDate.setHours(h, m, 0, 0);
+  const checkInStart = new Date(depDate.getTime() - 3 * 3600000);
+  const checkInEnd = new Date(depDate.getTime() - 40 * 60000);
+
+  return {
+    id: flightNum,
+    flightNumber: flightNum,
+    destination,
+    iataCode: iata,
+    airline,
+    scheduledTime: time,
+    days,
+    status: 'scheduled',
+    scheduledDeparture: depDate.toISOString(),
+    expectedDeparture: null,
+    checkInStart: checkInStart.toISOString(),
+    checkInEnd: checkInEnd.toISOString(),
+    checkInCounters: '',
+    boardingStart: null,
+    boardingEnd: null,
+    boardingGate: ''
+  };
 }
 
-// Загрузка из Gist
 async function loadFlights() {
   try {
-    const r = await fetch(RAW_URL);
+    const r = await fetch(RAW_URL + '?t=' + Date.now());
     const data = await r.json();
     if (Array.isArray(data) && data.length > 0) return data;
   } catch(e) {}
@@ -109,7 +128,6 @@ async function loadFlights() {
   return base;
 }
 
-// Сохранение в Gist
 async function saveFlights(flights) {
   try {
     await fetch(`https://api.github.com/gists/${GIST_ID}`, {
@@ -133,26 +151,63 @@ function fliesToday(flight) {
   return flight.days.includes(dayNames[today]);
 }
 
-function makeDate(timeStr) {
+function computeFlightStatus(flight) {
+  if (flight.status === 'cancelled') return 'cancelled';
+  if (flight.status === 'departed') return 'departed';
   const now = getSamaraNow();
-  const [h, m] = timeStr.split(':').map(Number);
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+  const checkInStart = flight.checkInStart ? new Date(flight.checkInStart) : null;
+  const checkInEnd = flight.checkInEnd ? new Date(flight.checkInEnd) : null;
+  const boardingStart = flight.boardingStart ? new Date(flight.boardingStart) : null;
+  const boardingEnd = flight.boardingEnd ? new Date(flight.boardingEnd) : null;
+  if (boardingEnd && now > boardingEnd) return 'boarding_completed';
+  if (boardingStart && boardingEnd && now >= boardingStart && now <= boardingEnd) return 'boarding';
+  if (checkInEnd && now > checkInEnd && (!boardingStart || now < boardingStart)) return 'checkin_completed';
+  if (checkInStart && checkInEnd && now >= checkInStart && now <= checkInEnd) return 'checkin';
+  return 'scheduled';
+}
+
+function getStatusText(flight) {
+  if (flight.status === 'cancelled') return 'Отменён';
+  if (flight.status === 'departed') return 'Вылетел';
+  const s = computeFlightStatus(flight);
+  if (s === 'checkin') return 'Регистрация';
+  if (s === 'checkin_completed') return 'Регистрация закончена';
+  if (s === 'boarding') return 'Посадка';
+  if (s === 'boarding_completed') return 'Посадка закончена';
+  return 'По расписанию';
 }
 
 app.get('/api/flights', async (req, res) => {
-  const flights = await loadFlights();
+  let flights = await loadFlights();
   const showDeparted = req.query.showDeparted === 'true';
-  const todayFlights = flights.filter(f => fliesToday(f) || f.status === 'departed');
-  const enriched = todayFlights
+  flights = flights.filter(f => fliesToday(f) || f.status === 'departed');
+  const enriched = flights
     .filter(f => f.status !== 'departed' || showDeparted)
-    .map(f => ({ ...f, scheduledDeparture: makeDate(f.scheduledTime).toISOString(), statusText: f.status === 'departed' ? 'Вылетел' : f.status === 'cancelled' ? 'Отменён' : 'По расписанию' }))
-    .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
+    .map(f => ({ ...f, computedStatus: computeFlightStatus(f), statusText: getStatusText(f) }))
+    .sort((a, b) => (a.scheduledTime || '').localeCompare(b.scheduledTime || ''));
   res.json(enriched);
 });
 
 app.post('/api/flights', async (req, res) => {
   const flights = await loadFlights();
-  const flight = { id: req.body.id || Date.now().toString(), flightNumber: req.body.flightNumber, destination: req.body.destination, iataCode: req.body.iataCode, airline: req.body.airline, scheduledTime: req.body.scheduledTime || '00:00', days: req.body.days || ['everyday'], status: req.body.status || 'scheduled', checkInStart: req.body.checkInStart || null, checkInEnd: req.body.checkInEnd || null, checkInCounters: req.body.checkInCounters || '', boardingStart: req.body.boardingStart || null, boardingEnd: req.body.boardingEnd || null, boardingGate: req.body.boardingGate || '', expectedDeparture: req.body.expectedDeparture || null };
+  const flight = {
+    id: req.body.id || Date.now().toString(),
+    flightNumber: req.body.flightNumber || '',
+    destination: req.body.destination || '',
+    iataCode: req.body.iataCode || '',
+    airline: req.body.airline || '',
+    scheduledTime: req.body.scheduledTime || '00:00',
+    days: req.body.days || ['everyday'],
+    status: req.body.status || 'scheduled',
+    scheduledDeparture: req.body.scheduledDeparture || null,
+    expectedDeparture: req.body.expectedDeparture || null,
+    checkInStart: req.body.checkInStart || null,
+    checkInEnd: req.body.checkInEnd || null,
+    checkInCounters: req.body.checkInCounters || '',
+    boardingStart: req.body.boardingStart || null,
+    boardingEnd: req.body.boardingEnd || null,
+    boardingGate: req.body.boardingGate || ''
+  };
   flights.push(flight);
   await saveFlights(flights);
   res.status(201).json(flight);
@@ -177,5 +232,5 @@ app.delete('/api/flights/:id', async (req, res) => {
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Самара OK'));
+app.listen(PORT, () => console.log('OK'));
 module.exports = app;
