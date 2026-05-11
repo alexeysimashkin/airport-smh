@@ -28,9 +28,7 @@ function getSamaraNow() {
 
 setInterval(() => {
   const now = getSamaraNow();
-  const h = String(now.getHours()).padStart(2, '0');
-  const m = String(now.getMinutes()).padStart(2, '0');
-  clockTime.textContent = `${h}:${m}`;
+  clockTime.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 }, 1000);
 
 function fmtTm(s) {
@@ -52,40 +50,13 @@ function fmtDateOnly(s) {
   return `${d.getDate()} ${months[d.getMonth()]}`;
 }
 
-function getTodayStart() {
-  const now = getSamaraNow();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-}
-
-function getTomorrowStart() {
-  const t = getTodayStart();
-  return new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1, 0, 0, 0);
-}
-
-function getTomorrowEnd() {
-  const t = getTomorrowStart();
-  return new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1, 0, 0, -1);
-}
-
-function getFlightDay(f) {
-  if (f.status === 'departed') return 'departed';
-  const dep = new Date(f.scheduledDeparture);
-  const todayStart = getTodayStart();
-  const tomorrowStart = getTomorrowStart();
-  const tomorrowEnd = getTomorrowEnd();
-  if (dep >= todayStart && dep < tomorrowStart) return 'today';
-  if (dep >= tomorrowStart && dep <= tomorrowEnd) return 'tomorrow';
-  return 'today';
-}
-
 async function load() {
   const r = await fetch(API);
   currentFlights = await r.json();
   renderAll();
   const now = getSamaraNow();
-  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-  lastUpdated.textContent = ts;
-  lastUpdated2.textContent = ts;
+  lastUpdated.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  lastUpdated2.textContent = lastUpdated.textContent;
 }
 
 function getTagClass(f) {
@@ -145,7 +116,8 @@ function renderAll() {
   // Сегодня
   const todayFlights = currentFlights.filter(f => {
     if (f.status === 'departed') return showDeparted;
-    return getFlightDay(f) === 'today';
+    const day = f.flightDay || 'today';
+    return day === 'today';
   });
   
   flightsToday.innerHTML = todayFlights.length === 0
@@ -153,7 +125,11 @@ function renderAll() {
     : todayFlights.map(renderFlightRow).join('');
   
   // Завтра
-  const tomorrowFlights = currentFlights.filter(f => getFlightDay(f) === 'tomorrow');
+  const tomorrowFlights = currentFlights.filter(f => {
+    if (f.status === 'departed') return false;
+    const day = f.flightDay || 'today';
+    return day === 'tomorrow';
+  });
   
   flightsTomorrow.innerHTML = tomorrowFlights.length === 0
     ? `<tr class="empty"><td colspan="6"><div class="empty-msg"><i class="fas fa-plane"></i><p>Нет рейсов на завтра</p></div></td></tr>`
