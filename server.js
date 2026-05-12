@@ -24,18 +24,31 @@ async function saveOne(f) {
   );
 }
 
+function getSamaraNow() {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + (4 * 3600000));
+}
+
 function computeStatus(f) {
   if (f.status === 'cancelled') return 'cancelled';
   if (f.status === 'departed') return 'departed';
-  const now = new Date();
+  
+  const now = getSamaraNow();
   const ci = f.checkInStart ? new Date(f.checkInStart) : null;
   const ce = f.checkInEnd ? new Date(f.checkInEnd) : null;
   const bs = f.boardingStart ? new Date(f.boardingStart) : null;
   const be = f.boardingEnd ? new Date(f.boardingEnd) : null;
+  
   if (be && now > be) return 'boarding_completed';
   if (bs && be && now >= bs && now <= be) return 'boarding';
   if (ce && now > ce && (!bs || now < bs)) return 'checkin_completed';
   if (ci && ce && now >= ci && now <= ce) return 'checkin';
+  
+  const sched = f.scheduledDeparture ? new Date(f.scheduledDeparture) : null;
+  const exp = f.expectedDeparture ? new Date(f.expectedDeparture) : null;
+  if (exp && sched && exp > sched && now < exp) return 'delayed';
+  
   return 'scheduled';
 }
 
