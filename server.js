@@ -58,10 +58,12 @@ const DAILY_FLIGHTS = [
 
 function makeFlight(f, date) {
   const [h, m] = f.time.split(':').map(Number);
-  // Создаём дату в самарском времени (UTC+4)
-  const dep = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), h - 4, m, 0));
-  const ci = new Date(dep.getTime() - 3 * 3600000);
-  const ce = new Date(dep.getTime() - 40 * 60000);
+  // Самарское время = UTC+4. Чтобы 02:30 по Самаре было 02:30 в ISO, создаём как UTC+4
+  const dep = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), h, m, 0));
+  // Конвертируем в ISO, но так как JS считает это UTC, нам нужно вычесть 4 часа чтобы получить правильное локальное время
+  const depLocal = new Date(dep.getTime() - 4 * 3600000);
+  const ci = new Date(depLocal.getTime() - 3 * 3600000);
+  const ce = new Date(depLocal.getTime() - 40 * 60000);
   const dateStr = date.toISOString().slice(0, 10);
   const id = f.flightNumber + '-' + dateStr;
   return {
@@ -70,7 +72,7 @@ function makeFlight(f, date) {
     destination: f.destination,
     iataCode: f.iataCode,
     airline: f.airline,
-    scheduledDeparture: dep.toISOString(),
+    scheduledDeparture: depLocal.toISOString(),
     expectedDeparture: null,
     checkInStart: ci.toISOString(),
     checkInEnd: ce.toISOString(),
@@ -89,27 +91,19 @@ async function ensureDailyFlights() {
   const existingIds = new Set(all.map(f => f.id));
   const toAdd = [];
   
-  // На сегодня
   const todayStr = today.toISOString().slice(0, 10);
   for (const f of DAILY_FLIGHTS) {
     const id = f.flightNumber + '-' + todayStr;
-    if (!existingIds.has(id)) {
-      toAdd.push(makeFlight(f, today));
-    }
+    if (!existingIds.has(id)) toAdd.push(makeFlight(f, today));
   }
   
-  // На завтра
   const tomorrowStr = tomorrow.toISOString().slice(0, 10);
   for (const f of DAILY_FLIGHTS) {
     const id = f.flightNumber + '-' + tomorrowStr;
-    if (!existingIds.has(id)) {
-      toAdd.push(makeFlight(f, tomorrow));
-    }
+    if (!existingIds.has(id)) toAdd.push(makeFlight(f, tomorrow));
   }
   
-  if (toAdd.length > 0) {
-    await saveFlights([...all, ...toAdd]);
-  }
+  if (toAdd.length > 0) await saveFlights([...all, ...toAdd]);
 }
 
 async function loadFlights() {
@@ -136,12 +130,12 @@ function getSamaraNow() {
 
 function getTodayStart() {
   const now = getSamaraNow();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0));
 }
 
 function getTomorrowStart() {
-  const t = getTodayStart();
-  return new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1, 0, 0, 0);
+  const t = new Date(getTodayStart());
+  return new Date(t.getTime() + 86400000);
 }
 
 function getFlightDay(f) {
