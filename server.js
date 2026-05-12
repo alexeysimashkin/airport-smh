@@ -110,20 +110,48 @@ function enrich(flight) {
   };
 }
 
+// Очистка вылетевших рейсов за прошлый день
+async function cleanupDeparted() {
+  const flights = await loadFlights();
+  const todayStart = getTodayStart();
+  const cleaned = flights.filter(f => {
+    if (f.status === 'departed' && f.scheduledDeparture) {
+      const depDate = new Date(f.scheduledDeparture);
+      // Оставляем только сегодняшние вылетевшие
+      return depDate >= todayStart;
+    }
+    return true;
+  });
+  if (cleaned.length !== flights.length) {
+    await saveFlights(cleaned);
+  }
+  return cleaned;
+}
+
 app.get('/api/flights', async (req, res) => {
-  let flights = (await loadFlights()).map(enrich);
+  let flights = (await cleanupDeparted()).map(enrich);
+  const showDeparted = req.query.showDeparted === 'true';
   
+  // Фильтруем вылетевшие если нужно
+  if (!showDeparted) {
+    flights = flights.filter(f => f.status !== 'departed');
+  }
+  
+  // Сортировка: по ожидаемому времени (если есть), иначе по плановому
   flights.sort((a, b) => {
-    const timeA = a.scheduledDeparture ? new Date(a.scheduledDeparture).getTime() : 0;
-    const timeB = b.scheduledDeparture ? new Date(b.scheduledDeparture).getTime() : 0;
-    return timeA - timeB;
+    const getTime = (f) => {
+      if (f.expectedDeparture) return new Date(f.expectedDeparture).getTime();
+      if (f.scheduledDeparture) return new Date(f.scheduledDeparture).getTime();
+      return 0;
+    };
+    return getTime(a) - getTime(b);
   });
   
   res.json(flights);
 });
 
 app.post('/api/flights', async (req, res) => {
-  const flights = await loadFlights();
+  let flights = await loadFlights();
   const flight = {
     id: Date.now().toString(),
     flightNumber: req.body.flightNumber || '',
