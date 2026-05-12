@@ -110,8 +110,8 @@ function statusText(f) {
 }
 
 function enrich(f) {
+  if (!f.scheduledDeparture) return { ...f, flightDay:'today', computedStatus:f.status, statusText:statusText(f) };
   const dep = new Date(f.scheduledDeparture);
-  const todayStart = today();
   const tomorrowStart = tomorrow();
   const day = dep >= tomorrowStart ? 'tomorrow' : 'today';
   return { ...f, flightDay: day, computedStatus: computeStatus(f), statusText: statusText(f) };
@@ -128,11 +128,12 @@ app.get('/api/flights', async (req, res) => {
   }
   if (add.length) { flights.push(...add); await save(flights); }
   
-  // Очистка
+  // Очистка старых departed
   const tStr = ds(t);
   const cleaned = flights.filter(f=>f.status!=='departed'||(f.scheduledDeparture||'').startsWith(tStr));
   if (cleaned.length !== flights.length) { flights = cleaned; await save(flights); }
   
+  // Сохраняем ВСЕ рейсы включая ручные
   let result = flights.map(enrich);
   if (req.query.showDeparted !== 'true') result = result.filter(f=>f.status!=='departed');
   result.sort((a,b)=>a.scheduledTime.localeCompare(b.scheduledTime));
