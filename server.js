@@ -19,18 +19,58 @@ async function load() {
 
 async function save(flights) {
   try {
-    await pool.query('DELETE FROM flights');
-    for (const f of flights) await pool.query('INSERT INTO flights (id, data) VALUES ($1, $2)', [f.id, JSON.stringify(f)]);
+    // Не удаляем всё — обновляем по одному
+    for (const f of flights) {
+      await pool.query(
+        'INSERT INTO flights (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2',
+        [f.id, JSON.stringify(f)]
+      );
+    }
   } catch(e) {}
 }
 
+function computeStatus(f) {
+  if (f.status === 'cancelled') return 'cancelled';
+  if (f.status === 'departed') return 'departed';
+  const now = new Date();
+  const ci = f.checkInStart ? new Date(f.checkInStart) : null;
+  const ce = f.checkInEnd ? new Date(f.checkInEnd) : null;
+  const bs = f.boardingStart ? new Date(f.boardingStart) : null;
+  const be = f.boardingEnd ? new Date(f.boardingEnd) : null;
+  if (be && now > be) return 'boarding_completed';
+  if (bs && be && now >= bs && now <= be) return 'boarding';
+  if (ce && now > ce && (!bs || now < bs)) return 'checkin_completed';
+  if (ci && ce && now >= ci && now <= ce) return 'checkin';
+  return 'scheduled';
+}
+
+function getStatusText(f) {
+  if (f.status === 'cancelled') return 'Отменён';
+  if (f.status === 'departed') return 'Вылетел';
+  const s = computeStatus(f);
+  if (s === 'checkin') return 'Регистрация';
+  if (s === 'checkin_completed') return 'Регистрация закончена';
+  if (s === 'boarding') return 'Посадка';
+  if (s === 'boarding_completed') return 'Посадка закончена';
+  return 'По расписанию';
+}
+
 app.get('/api/flights', async (req, res) => {
-  const flights = await load();
+  let flights = await load();
+  const showDep = req.query.showDeparted === 'true';
+  if (!showDep) flights = flights.filter(f => f.status !== 'departed');
+  
+  flights = flights.map(f => ({
+    ...f,
+    computedStatus: computeStatus(f),
+    statusText: getStatusText(f)
+  }));
+  
+  flights.sort((a, b) => (a.scheduledDeparture || '').localeCompare(b.scheduledDeparture || ''));
   res.json(flights);
 });
 
 app.post('/api/flights', async (req, res) => {
-  const flights = await load();
   const f = {
     id: Date.now().toString(),
     flightNumber: req.body.flightNumber || '',
@@ -47,8 +87,7 @@ app.post('/api/flights', async (req, res) => {
     boardingGate: req.body.boardingGate || '',
     status: req.body.status || 'scheduled'
   };
-  flights.push(f);
-  await save(flights);
+  await save([f]);
   res.status(201).json(f);
 });
 
@@ -57,14 +96,12 @@ app.put('/api/flights/:id', async (req, res) => {
   const i = flights.findIndex(f => f.id === req.params.id);
   if (i === -1) return res.status(404).json({ error: 'Не найден' });
   flights[i] = { ...flights[i], ...req.body, id: flights[i].id };
-  await save(flights);
+  await save([flights[i]]);
   res.json(flights[i]);
 });
 
 app.delete('/api/flights/:id', async (req, res) => {
-  let flights = await load();
-  flights = flights.filter(f => f.id !== req.params.id);
-  await save(flights);
+  await pool.query('DELETE FROM flights WHERE id = $1', [req.params.id]);
   res.status(204).send();
 });
 
