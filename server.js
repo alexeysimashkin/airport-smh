@@ -18,7 +18,7 @@ pool.query(`
 `).catch(e => console.log(e));
 
 // Базовые ежедневные рейсы
-const DEFAULT_FLIGHTS = [
+const DAILY_FLIGHTS = [
   { flightNumber: "AS-2819", destination: "Москва", iataCode: "SVO", airline: "ASO Airlines", time: "00:00" },
   { flightNumber: "AS-987", destination: "Дубай", iataCode: "DXB", airline: "ASO Airlines", time: "02:30" },
   { flightNumber: "NS-250", destination: "Екатеринбург", iataCode: "SVX", airline: "Noris", time: "03:35" },
@@ -57,37 +57,49 @@ const DEFAULT_FLIGHTS = [
   { flightNumber: "AS-6244", destination: "Санкт-Петербург", iataCode: "LED", airline: "ASO Airlines", time: "23:55" }
 ];
 
-async function initDefaultFlights() {
-  const existing = await loadFlights();
-  if (existing.length === 0) {
-    const now = getSamaraNow();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    const flights = DEFAULT_FLIGHTS.map(f => {
-      const [h, m] = f.time.split(':').map(Number);
-      const dep = new Date(today.getTime() + h * 3600000 + m * 60000);
-      const ci = new Date(dep.getTime() - 3 * 3600000);
-      const ce = new Date(dep.getTime() - 40 * 60000);
-      
-      return {
-        id: f.flightNumber,
-        flightNumber: f.flightNumber,
-        destination: f.destination,
-        iataCode: f.iataCode,
-        airline: f.airline,
-        scheduledDeparture: dep.toISOString(),
-        expectedDeparture: null,
-        checkInStart: ci.toISOString(),
-        checkInEnd: ce.toISOString(),
-        checkInCounters: '',
-        boardingStart: null,
-        boardingEnd: null,
-        boardingGate: '',
-        status: 'scheduled'
-      };
-    });
-    
-    await saveFlights(flights);
+// Создаёт рейс на сегодня
+function makeFlight(f, date) {
+  const [h, m] = f.time.split(':').map(Number);
+  const dep = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m, 0);
+  const ci = new Date(dep.getTime() - 3 * 3600000);
+  const ce = new Date(dep.getTime() - 40 * 60000);
+  const id = f.flightNumber + '-' + date.toISOString().slice(0, 10);
+  return {
+    id,
+    flightNumber: f.flightNumber,
+    destination: f.destination,
+    iataCode: f.iataCode,
+    airline: f.airline,
+    scheduledDeparture: dep.toISOString(),
+    expectedDeparture: null,
+    checkInStart: ci.toISOString(),
+    checkInEnd: ce.toISOString(),
+    checkInCounters: '',
+    boardingStart: null,
+    boardingEnd: null,
+    boardingGate: '',
+    status: 'scheduled'
+  };
+}
+
+// Добавляет ежедневные рейсы на сегодня, если их ещё нет
+async function ensureDailyFlights() {
+  const all = await loadFlights();
+  const today = getTodayStart();
+  const todayStr = today.toISOString().slice(0, 10);
+  
+  const existingIds = new Set(all.map(f => f.id));
+  const toAdd = [];
+  
+  for (const f of DAILY_FLIGHTS) {
+    const id = f.flightNumber + '-' + todayStr;
+    if (!existingIds.has(id)) {
+      toAdd.push(makeFlight(f, today));
+    }
+  }
+  
+  if (toAdd.length > 0) {
+    await saveFlights([...all, ...toAdd]);
   }
 }
 
@@ -124,9 +136,7 @@ function getTomorrowStart() {
 }
 
 function getFlightDay(f) {
-  const dep = f.expectedDeparture 
-    ? new Date(f.expectedDeparture) 
-    : new Date(f.scheduledDeparture);
+  const dep = f.expectedDeparture ? new Date(f.expectedDeparture) : new Date(f.scheduledDeparture);
   if (!dep || isNaN(dep.getTime())) return 'today';
   if (dep >= getTomorrowStart()) return 'tomorrow';
   return 'today';
@@ -182,6 +192,7 @@ async function cleanupDeparted() {
 }
 
 app.get('/api/flights', async (req, res) => {
+  await ensureDailyFlights();
   let flights = (await cleanupDeparted()).map(enrich);
   const showDeparted = req.query.showDeparted === 'true';
   if (!showDeparted) flights = flights.filter(f => f.status !== 'departed');
@@ -235,8 +246,5 @@ app.delete('/api/flights/:id', async (req, res) => {
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
-  await initDefaultFlights();
-  console.log('OK');
-});
+app.listen(PORT, () => console.log('OK'));
 module.exports = app;
