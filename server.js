@@ -17,15 +17,11 @@ async function load() {
   catch(e) { return []; }
 }
 
-async function save(flights) {
-  try {
-    for (const f of flights) {
-      await pool.query(
-        'INSERT INTO flights (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2',
-        [f.id, JSON.stringify(f)]
-      );
-    }
-  } catch(e) {}
+async function saveOne(f) {
+  await pool.query(
+    'INSERT INTO flights (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2',
+    [f.id, JSON.stringify(f)]
+  );
 }
 
 function computeStatus(f) {
@@ -86,7 +82,7 @@ app.post('/api/flights', async (req, res) => {
     boardingGate: req.body.boardingGate || '',
     status: req.body.status || 'scheduled'
   };
-  await save([f]);
+  await saveOne(f);
   res.status(201).json(f);
 });
 
@@ -95,7 +91,7 @@ app.put('/api/flights/:id', async (req, res) => {
   const i = flights.findIndex(f => f.id === req.params.id);
   if (i === -1) return res.status(404).json({ error: 'Не найден' });
   flights[i] = { ...flights[i], ...req.body, id: flights[i].id };
-  await save([flights[i]]);
+  await saveOne(flights[i]);
   res.json(flights[i]);
 });
 
