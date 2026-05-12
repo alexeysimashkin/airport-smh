@@ -17,7 +17,6 @@ pool.query(`
   )
 `).catch(e => console.log(e));
 
-// Базовые ежедневные рейсы
 const DAILY_FLIGHTS = [
   { flightNumber: "AS-2819", destination: "Москва", iataCode: "SVO", airline: "ASO Airlines", time: "00:00" },
   { flightNumber: "AS-987", destination: "Дубай", iataCode: "DXB", airline: "ASO Airlines", time: "02:30" },
@@ -57,13 +56,14 @@ const DAILY_FLIGHTS = [
   { flightNumber: "AS-6244", destination: "Санкт-Петербург", iataCode: "LED", airline: "ASO Airlines", time: "23:55" }
 ];
 
-// Создаёт рейс на сегодня
 function makeFlight(f, date) {
   const [h, m] = f.time.split(':').map(Number);
-  const dep = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m, 0);
+  // Создаём дату в самарском времени (UTC+4)
+  const dep = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), h - 4, m, 0));
   const ci = new Date(dep.getTime() - 3 * 3600000);
   const ce = new Date(dep.getTime() - 40 * 60000);
-  const id = f.flightNumber + '-' + date.toISOString().slice(0, 10);
+  const dateStr = date.toISOString().slice(0, 10);
+  const id = f.flightNumber + '-' + dateStr;
   return {
     id,
     flightNumber: f.flightNumber,
@@ -82,19 +82,28 @@ function makeFlight(f, date) {
   };
 }
 
-// Добавляет ежедневные рейсы на сегодня, если их ещё нет
 async function ensureDailyFlights() {
   const all = await loadFlights();
   const today = getTodayStart();
-  const todayStr = today.toISOString().slice(0, 10);
-  
+  const tomorrow = getTomorrowStart();
   const existingIds = new Set(all.map(f => f.id));
   const toAdd = [];
   
+  // На сегодня
+  const todayStr = today.toISOString().slice(0, 10);
   for (const f of DAILY_FLIGHTS) {
     const id = f.flightNumber + '-' + todayStr;
     if (!existingIds.has(id)) {
       toAdd.push(makeFlight(f, today));
+    }
+  }
+  
+  // На завтра
+  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+  for (const f of DAILY_FLIGHTS) {
+    const id = f.flightNumber + '-' + tomorrowStr;
+    if (!existingIds.has(id)) {
+      toAdd.push(makeFlight(f, tomorrow));
     }
   }
   
