@@ -56,14 +56,22 @@ const DAILY_FLIGHTS = [
   { flightNumber: "AS-6244", destination: "Санкт-Петербург", iataCode: "LED", airline: "ASO Airlines", time: "23:55" }
 ];
 
-function makeFlight(f, date) {
-  const [h, m] = f.time.split(':').map(Number);
-  // Используем локальное время сервера. Сервер в UTC, но мы передаём строку как есть.
-  const depStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
-  const dep = new Date(depStr);
-  const ci = new Date(dep.getTime() - 3 * 3600000);
-  const ce = new Date(dep.getTime() - 40 * 60000);
-  const dateStr = date.toISOString().slice(0, 10);
+function getTodayStr() {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const samara = new Date(utc + 4 * 3600000);
+  return samara.toISOString().slice(0, 10);
+}
+
+function getTomorrowStr() {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const samara = new Date(utc + 4 * 3600000);
+  samara.setDate(samara.getDate() + 1);
+  return samara.toISOString().slice(0, 10);
+}
+
+function makeFlight(f, dateStr) {
   const id = f.flightNumber + '-' + dateStr;
   return {
     id,
@@ -71,10 +79,11 @@ function makeFlight(f, date) {
     destination: f.destination,
     iataCode: f.iataCode,
     airline: f.airline,
-    scheduledDeparture: dep.toISOString(),
+    scheduledTime: f.time,
+    scheduledDeparture: dateStr + 'T' + f.time + ':00',
     expectedDeparture: null,
-    checkInStart: ci.toISOString(),
-    checkInEnd: ce.toISOString(),
+    checkInStart: null,
+    checkInEnd: null,
     checkInCounters: '',
     boardingStart: null,
     boardingEnd: null,
@@ -85,20 +94,18 @@ function makeFlight(f, date) {
 
 async function ensureDailyFlights() {
   const all = await loadFlights();
-  const today = getTodayStart();
-  const tomorrow = getTomorrowStart();
   const existingIds = new Set(all.map(f => f.id));
   const toAdd = [];
   
-  const todayStr = today.toISOString().slice(0, 10);
+  const today = getTodayStr();
   for (const f of DAILY_FLIGHTS) {
-    const id = f.flightNumber + '-' + todayStr;
+    const id = f.flightNumber + '-' + today;
     if (!existingIds.has(id)) toAdd.push(makeFlight(f, today));
   }
   
-  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+  const tomorrow = getTomorrowStr();
   for (const f of DAILY_FLIGHTS) {
-    const id = f.flightNumber + '-' + tomorrowStr;
+    const id = f.flightNumber + '-' + tomorrow;
     if (!existingIds.has(id)) toAdd.push(makeFlight(f, tomorrow));
   }
   
@@ -122,68 +129,29 @@ async function saveFlights(flights) {
 }
 
 function getSamaraNow() {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Samara' }));
-}
-
-function getTodayStart() {
-  const now = getSamaraNow();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-}
-
-function getTomorrowStart() {
-  const t = getTodayStart();
-  return new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1, 0, 0, 0);
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + 4 * 3600000);
 }
 
 function getFlightDay(f) {
-  const dep = f.expectedDeparture ? new Date(f.expectedDeparture) : new Date(f.scheduledDeparture);
-  if (!dep || isNaN(dep.getTime())) return 'today';
-  if (dep >= getTomorrowStart()) return 'tomorrow';
+  const dep = f.scheduledDeparture || '';
+  const today = getTodayStr();
+  const tomorrow = getTomorrowStr();
+  if (dep.startsWith(tomorrow)) return 'tomorrow';
   return 'today';
 }
 
-function computeStatus(flight) {
-  if (flight.status === 'cancelled') return 'cancelled';
-  if (flight.status === 'departed') return 'departed';
-  const now = getSamaraNow();
-  const ci = flight.checkInStart ? new Date(flight.checkInStart) : null;
-  const ce = flight.checkInEnd ? new Date(flight.checkInEnd) : null;
-  const bs = flight.boardingStart ? new Date(flight.boardingStart) : null;
-  const be = flight.boardingEnd ? new Date(flight.boardingEnd) : null;
-  if (be && now > be) return 'boarding_completed';
-  if (bs && be && now >= bs && now <= be) return 'boarding';
-  if (ce && now > ce && (!bs || now < bs)) return 'checkin_completed';
-  if (ci && ce && now >= ci && now <= ce) return 'checkin';
-  const sched = flight.scheduledDeparture ? new Date(flight.scheduledDeparture) : null;
-  const exp = flight.expectedDeparture ? new Date(flight.expectedDeparture) : null;
-  if (exp && sched && exp > sched && now < exp) return 'delayed';
-  return 'scheduled';
-}
-
-function getStatusText(flight) {
-  if (flight.status === 'cancelled') return 'Отменён';
-  if (flight.status === 'departed') return 'Вылетел';
-  const s = computeStatus(flight);
-  const exp = flight.expectedDeparture ? new Date(flight.expectedDeparture) : null;
-  const time = exp ? `${String(exp.getHours()).padStart(2,'0')}:${String(exp.getMinutes()).padStart(2,'0')}` : '';
-  if (s === 'delayed') return `Задержан до ${time}`;
-  if (s === 'checkin') return 'Регистрация';
-  if (s === 'checkin_completed') return 'Регистрация закончена';
-  if (s === 'boarding') return 'Посадка';
-  if (s === 'boarding_completed') return 'Посадка закончена';
-  return 'По расписанию';
-}
-
 function enrich(flight) {
-  return { ...flight, flightDay: getFlightDay(flight), computedStatus: computeStatus(flight), statusText: getStatusText(flight) };
+  return { ...flight, flightDay: getFlightDay(flight), computedStatus: flight.status, statusText: flight.status === 'cancelled' ? 'Отменён' : flight.status === 'departed' ? 'Вылетел' : 'По расписанию' };
 }
 
 async function cleanupDeparted() {
   const flights = await loadFlights();
-  const todayStart = getTodayStart();
+  const today = getTodayStr();
   const cleaned = flights.filter(f => {
     if (f.status === 'departed' && f.scheduledDeparture) {
-      return new Date(f.scheduledDeparture) >= todayStart;
+      return f.scheduledDeparture >= today;
     }
     return true;
   });
@@ -196,11 +164,7 @@ app.get('/api/flights', async (req, res) => {
   let flights = (await cleanupDeparted()).map(enrich);
   const showDeparted = req.query.showDeparted === 'true';
   if (!showDeparted) flights = flights.filter(f => f.status !== 'departed');
-  flights.sort((a, b) => {
-    const ta = a.expectedDeparture ? new Date(a.expectedDeparture).getTime() : new Date(a.scheduledDeparture).getTime();
-    const tb = b.expectedDeparture ? new Date(b.expectedDeparture).getTime() : new Date(b.scheduledDeparture).getTime();
-    return ta - tb;
-  });
+  flights.sort((a, b) => (a.scheduledTime || '').localeCompare(b.scheduledTime || ''));
   res.json(flights);
 });
 
@@ -212,6 +176,7 @@ app.post('/api/flights', async (req, res) => {
     destination: req.body.destination || '',
     iataCode: req.body.iataCode || '',
     airline: req.body.airline || '',
+    scheduledTime: req.body.scheduledTime || '',
     scheduledDeparture: req.body.scheduledDeparture || null,
     expectedDeparture: req.body.expectedDeparture || null,
     checkInStart: req.body.checkInStart || null,
