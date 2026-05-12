@@ -54,11 +54,6 @@ function getStatusText(f) {
   return 'По расписанию';
 }
 
-app.get('/api/clean', async (req, res) => {
-  await pool.query("DELETE FROM flights WHERE id LIKE 'AS-%' OR id LIKE 'NS-%'");
-  res.send('Авто-рейсы удалены. Можешь удалять этот маршрут.');
-});
-
 app.get('/api/flights', async (req, res) => {
   let flights = await load();
   const showDep = req.query.showDeparted === 'true';
