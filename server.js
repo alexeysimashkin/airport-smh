@@ -12,7 +12,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 pool.query(`CREATE TABLE IF NOT EXISTS flights (id TEXT PRIMARY KEY, data JSONB NOT NULL)`).catch(e => console.log(e));
 
-const DAILY_FLIGHTS = [
+const DAILY = [
   { fn:"AS-2819", to:"Москва", iata:"SVO", al:"ASO Airlines", t:"00:00" },
   { fn:"AS-987", to:"Дубай", iata:"DXB", al:"ASO Airlines", t:"02:30" },
   { fn:"NS-250", to:"Екатеринбург", iata:"SVX", al:"Noris", t:"03:35" },
@@ -51,79 +51,91 @@ const DAILY_FLIGHTS = [
   { fn:"AS-6244", to:"Санкт-Петербург", iata:"LED", al:"ASO Airlines", t:"23:55" }
 ];
 
-function samaraDate() {
-  const d = new Date();
-  d.setHours(d.getHours() + 4);
-  return d;
-}
+function today() { const d=new Date(); return new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); }
+function tomorrow() { const d=today(); d.setUTCDate(d.getUTCDate()+1); return d; }
+function ds(d) { return d.toISOString().slice(0,10); }
 
-function todayStr() { return samaraDate().toISOString().slice(0,10); }
-function tomorrowStr() {
-  const d = samaraDate();
-  d.setDate(d.getDate()+1);
-  return d.toISOString().slice(0,10);
-}
-
-function mk(f, date) {
+function mk(f, d) {
+  const id = f.fn+'-'+ds(d);
+  const dep = ds(d)+'T'+f.t+':00.000Z';
   return {
-    id: f.fn+'-'+date,
-    flightNumber: f.fn,
-    destination: f.to,
-    iataCode: f.iata,
-    airline: f.al,
-    scheduledTime: f.t,
-    scheduledDeparture: date+'T'+f.t+':00',
-    expectedDeparture: null,
-    checkInStart: null, checkInEnd: null, checkInCounters: '',
-    boardingStart: null, boardingEnd: null, boardingGate: '',
-    status: 'scheduled'
+    id, flightNumber:f.fn, destination:f.to, iataCode:f.iata, airline:f.al,
+    scheduledTime:f.t, scheduledDeparture:dep, expectedDeparture:null,
+    checkInStart:null, checkInEnd:null, checkInCounters:'',
+    boardingStart:null, boardingEnd:null, boardingGate:'', status:'scheduled'
   };
 }
 
 async function load() {
-  try { const r = await pool.query('SELECT data FROM flights'); return r.rows.map(x=>x.data); }
+  try { const r=await pool.query('SELECT data FROM flights'); return r.rows.map(x=>x.data); }
   catch(e) { return []; }
 }
-
 async function save(flights) {
   try {
     await pool.query('DELETE FROM flights');
-    for (const f of flights) await pool.query('INSERT INTO flights (id, data) VALUES ($1,$2)', [f.id, JSON.stringify(f)]);
+    for(const f of flights) await pool.query('INSERT INTO flights (id,data) VALUES ($1,$2)',[f.id,JSON.stringify(f)]);
   } catch(e) {}
 }
 
+function computeStatus(f) {
+  if (f.status==='cancelled') return 'cancelled';
+  if (f.status==='departed') return 'departed';
+  if (!f.scheduledDeparture) return 'scheduled';
+  const dep = new Date(f.scheduledDeparture);
+  const now = new Date();
+  const ci = f.checkInStart ? new Date(f.checkInStart) : null;
+  const ce = f.checkInEnd ? new Date(f.checkInEnd) : null;
+  const bs = f.boardingStart ? new Date(f.boardingStart) : null;
+  const be = f.boardingEnd ? new Date(f.boardingEnd) : null;
+  if (be && now > be) return 'boarding_completed';
+  if (bs && be && now >= bs && now <= be) return 'boarding';
+  if (ce && now > ce && (!bs || now < bs)) return 'checkin_completed';
+  if (ci && ce && now >= ci && now <= ce) return 'checkin';
+  if (f.expectedDeparture && new Date(f.expectedDeparture) > dep && now < new Date(f.expectedDeparture)) return 'delayed';
+  return 'scheduled';
+}
+
+function statusText(f) {
+  const s = computeStatus(f);
+  if (f.status==='cancelled') return 'Отменён';
+  if (f.status==='departed') return 'Вылетел';
+  const exp = f.expectedDeparture ? new Date(f.expectedDeparture) : null;
+  const t = exp ? `${String(exp.getUTCHours()+4).padStart(2,'0')}:${String(exp.getUTCMinutes()).padStart(2,'0')}` : '';
+  if (s==='delayed') return `Задержан до ${t}`;
+  if (s==='checkin') return 'Регистрация';
+  if (s==='checkin_completed') return 'Регистрация закончена';
+  if (s==='boarding') return 'Посадка';
+  if (s==='boarding_completed') return 'Посадка закончена';
+  return 'По расписанию';
+}
+
 function enrich(f) {
-  const dep = f.scheduledDeparture||'';
-  const today = todayStr();
-  const tomorrow = tomorrowStr();
-  const day = dep.startsWith(tomorrow) ? 'tomorrow' : 'today';
-  return { ...f, flightDay: day, computedStatus: f.status, statusText: f.status==='cancelled'?'Отменён':f.status==='departed'?'Вылетел':'По расписанию' };
+  const dep = new Date(f.scheduledDeparture);
+  const todayStart = today();
+  const tomorrowStart = tomorrow();
+  const day = dep >= tomorrowStart ? 'tomorrow' : 'today';
+  return { ...f, flightDay: day, computedStatus: computeStatus(f), statusText: statusText(f) };
 }
 
 app.get('/api/flights', async (req, res) => {
   let flights = await load();
-  const today = todayStr();
-  const tomorrow = tomorrowStr();
-  const existing = new Set(flights.map(f=>f.id));
+  const t = today(), m = tomorrow();
+  const exist = new Set(flights.map(f=>f.id));
   const add = [];
-  
-  for (const f of DAILY_FLIGHTS) {
-    const idT = f.fn+'-'+today;
-    if (!existing.has(idT)) add.push(mk(f, today));
-    const idM = f.fn+'-'+tomorrow;
-    if (!existing.has(idM)) add.push(mk(f, tomorrow));
+  for (const f of DAILY) {
+    if (!exist.has(f.fn+'-'+ds(t))) add.push(mk(f,t));
+    if (!exist.has(f.fn+'-'+ds(m))) add.push(mk(f,m));
   }
-  
   if (add.length) { flights.push(...add); await save(flights); }
   
-  // Очистка вчерашних departed
-  const cleaned = flights.filter(f=>f.status!=='departed'||(f.scheduledDeparture||'').startsWith(today));
+  // Очистка
+  const tStr = ds(t);
+  const cleaned = flights.filter(f=>f.status!=='departed'||(f.scheduledDeparture||'').startsWith(tStr));
   if (cleaned.length !== flights.length) { flights = cleaned; await save(flights); }
   
   let result = flights.map(enrich);
-  const showDep = req.query.showDeparted === 'true';
-  if (!showDep) result = result.filter(f=>f.status!=='departed');
-  result.sort((a,b)=>(a.scheduledTime||'').localeCompare(b.scheduledTime||''));
+  if (req.query.showDeparted !== 'true') result = result.filter(f=>f.status!=='departed');
+  result.sort((a,b)=>a.scheduledTime.localeCompare(b.scheduledTime));
   res.json(result);
 });
 
@@ -131,23 +143,17 @@ app.post('/api/flights', async (req,res) => {
   const flights = await load();
   const f = {
     id: Date.now().toString(),
-    flightNumber: req.body.flightNumber||'',
-    destination: req.body.destination||'',
-    iataCode: req.body.iataCode||'',
-    airline: req.body.airline||'',
+    flightNumber: req.body.flightNumber||'', destination: req.body.destination||'',
+    iataCode: req.body.iataCode||'', airline: req.body.airline||'',
     scheduledTime: req.body.scheduledTime||'',
     scheduledDeparture: req.body.scheduledDeparture||null,
     expectedDeparture: req.body.expectedDeparture||null,
-    checkInStart: req.body.checkInStart||null,
-    checkInEnd: req.body.checkInEnd||null,
+    checkInStart: req.body.checkInStart||null, checkInEnd: req.body.checkInEnd||null,
     checkInCounters: req.body.checkInCounters||'',
-    boardingStart: req.body.boardingStart||null,
-    boardingEnd: req.body.boardingEnd||null,
-    boardingGate: req.body.boardingGate||'',
-    status: req.body.status||'scheduled'
+    boardingStart: req.body.boardingStart||null, boardingEnd: req.body.boardingEnd||null,
+    boardingGate: req.body.boardingGate||'', status: req.body.status||'scheduled'
   };
-  flights.push(f);
-  await save(flights);
+  flights.push(f); await save(flights);
   res.status(201).json(enrich(f));
 });
 
@@ -170,5 +176,5 @@ app.delete('/api/flights/:id', async (req,res) => {
 app.get('*', (req,res) => res.sendFile(path.join(__dirname,'public','index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('OK'));
+app.listen(PORT, ()=>console.log('OK'));
 module.exports = app;
