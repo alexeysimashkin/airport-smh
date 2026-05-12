@@ -51,12 +51,13 @@ function fmtDateOnly(s) {
 }
 
 async function load() {
-  const r = await fetch(API);
+  const r = await fetch(`${API}?showDeparted=${showDeparted}`);
   currentFlights = await r.json();
   renderAll();
   const now = getSamaraNow();
-  lastUpdated.textContent = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-  lastUpdated2.textContent = lastUpdated.textContent;
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  lastUpdated.textContent = ts;
+  lastUpdated2.textContent = ts;
 }
 
 function getTagClass(f) {
@@ -95,10 +96,13 @@ function renderFlightRow(f) {
 }
 
 function renderAll() {
-  if (!currentFlights.length) {
+  // Админка — учитываем showDeparted
+  const adminFlights = showDeparted ? currentFlights : currentFlights.filter(f => f.status !== 'departed');
+  
+  if (!adminFlights.length) {
     adminList.innerHTML = '<p style="text-align:center;color:var(--gray-400);padding:20px;">Нет рейсов</p>';
   } else {
-    adminList.innerHTML = currentFlights.map(f => `
+    adminList.innerHTML = adminFlights.map(f => `
       <div class="admin-row">
         <div class="admin-row-info">
           <span class="admin-row-number">${f.flightNumber}</span>
@@ -234,7 +238,7 @@ toggleDeparted.addEventListener('click', () => {
   showDeparted = !showDeparted;
   toggleDeparted.classList.toggle('active', showDeparted);
   toggleDeparted.innerHTML = showDeparted ? '<i class="fas fa-eye-slash"></i> Скрыть вылетевшие' : '<i class="fas fa-eye"></i> Показать вылетевшие';
-  renderAll();
+  load();
 });
 
 $('adminToggle').onclick = () => { adminPanel.style.display = adminPanel.style.display !== 'none' ? 'none' : 'block'; };
