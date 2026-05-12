@@ -19,7 +19,6 @@ async function load() {
 
 async function save(flights) {
   try {
-    // Не удаляем всё — обновляем по одному
     for (const f of flights) {
       await pool.query(
         'INSERT INTO flights (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2',
@@ -54,6 +53,11 @@ function getStatusText(f) {
   if (s === 'boarding_completed') return 'Посадка закончена';
   return 'По расписанию';
 }
+
+app.get('/api/clean', async (req, res) => {
+  await pool.query("DELETE FROM flights WHERE id LIKE 'AS-%' OR id LIKE 'NS-%'");
+  res.send('Авто-рейсы удалены. Можешь удалять этот маршрут.');
+});
 
 app.get('/api/flights', async (req, res) => {
   let flights = await load();
