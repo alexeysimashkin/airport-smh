@@ -10,154 +10,148 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-pool.query(`
-  CREATE TABLE IF NOT EXISTS flights (
-    id TEXT PRIMARY KEY,
-    data JSONB NOT NULL
-  )
-`).catch(e => console.log(e));
+pool.query(`CREATE TABLE IF NOT EXISTS flights (id TEXT PRIMARY KEY, data JSONB NOT NULL)`).catch(e => console.log(e));
 
-async function loadFlights() {
-  try {
-    const r = await pool.query('SELECT data FROM flights');
-    return r.rows.map(row => row.data);
-  } catch(e) { return []; }
+const DAILY = [
+  { fn:"AS-2819", to:"Москва", iata:"SVO", al:"ASO Airlines", t:"00:00" },
+  { fn:"AS-987", to:"Дубай", iata:"DXB", al:"ASO Airlines", t:"02:30" },
+  { fn:"NS-250", to:"Екатеринбург", iata:"SVX", al:"Noris", t:"03:35" },
+  { fn:"AS-6232", to:"Санкт-Петербург", iata:"LED", al:"ASO Airlines", t:"04:00" },
+  { fn:"NS-912", to:"Самарканд", iata:"SKD", al:"Noris", t:"05:50" },
+  { fn:"AS-4633", to:"Минск", iata:"MSQ", al:"ASO Airlines", t:"06:30" },
+  { fn:"AS-144", to:"Тобольск", iata:"RMZ", al:"ASO Airlines", t:"07:00" },
+  { fn:"AS-2712", to:"Москва", iata:"SVO", al:"ASO Airlines", t:"07:25" },
+  { fn:"AS-6234", to:"Санкт-Петербург", iata:"LED", al:"ASO Airlines", t:"08:05" },
+  { fn:"NS-383", to:"Краснодар", iata:"KRR", al:"Noris", t:"08:45" },
+  { fn:"AS-622", to:"Краснодар", iata:"KRR", al:"ASO Airlines", t:"10:20" },
+  { fn:"AS-2615", to:"Москва", iata:"SVO", al:"ASO Airlines", t:"11:00" },
+  { fn:"AS-478", to:"Сургут", iata:"SGC", al:"ASO Airlines", t:"12:15" },
+  { fn:"AS-1309", to:"Тюмень", iata:"TUM", al:"ASO Airlines", t:"12:30" },
+  { fn:"AS-1084", to:"Геленджик", iata:"GDZ", al:"ASO Airlines", t:"13:00" },
+  { fn:"AS-9202", to:"Стамбул", iata:"IST", al:"ASO Airlines", t:"14:15" },
+  { fn:"AS-147", to:"Советский", iata:"OVS", al:"ASO Airlines", t:"14:35" },
+  { fn:"AS-6236", to:"Санкт-Петербург", iata:"LED", al:"ASO Airlines", t:"14:55" },
+  { fn:"AS-130", to:"Нижневартовск", iata:"NJC", al:"ASO Airlines", t:"15:15" },
+  { fn:"NS-548", to:"Москва", iata:"VKO", al:"Noris", t:"15:20" },
+  { fn:"AS-4635", to:"Минск", iata:"MSQ", al:"ASO Airlines", t:"15:30" },
+  { fn:"AS-2957", to:"Сочи", iata:"AER", al:"ASO Airlines", t:"16:00" },
+  { fn:"AS-1478", to:"Сургут", iata:"SGC", al:"ASO Airlines", t:"16:45" },
+  { fn:"AS-2726", to:"Москва", iata:"SVO", al:"ASO Airlines", t:"17:15" },
+  { fn:"NS-152", to:"Уфа", iata:"UFA", al:"Noris", t:"17:15" },
+  { fn:"AS-856", to:"Калининград", iata:"KGD", al:"ASO Airlines", t:"17:30" },
+  { fn:"AS-6238", to:"Санкт-Петербург", iata:"LED", al:"ASO Airlines", t:"18:45" },
+  { fn:"AS-2114", to:"Екатеринбург", iata:"SVX", al:"ASO Airlines", t:"19:00" },
+  { fn:"AS-1130", to:"Нижневартовск", iata:"NJC", al:"ASO Airlines", t:"19:30" },
+  { fn:"AS-6240", to:"Санкт-Петербург", iata:"LED", al:"ASO Airlines", t:"20:20" },
+  { fn:"NS-318", to:"Тюмень", iata:"TUM", al:"Noris", t:"21:35" },
+  { fn:"AS-6242", to:"Санкт-Петербург", iata:"LED", al:"ASO Airlines", t:"22:15" },
+  { fn:"AS-4637", to:"Минск", iata:"MSQ", al:"ASO Airlines", t:"22:20" },
+  { fn:"AS-3841", to:"Новосибирск", iata:"OVB", al:"ASO Airlines", t:"23:15" },
+  { fn:"AS-9098", to:"Пекин", iata:"PEK", al:"ASO Airlines", t:"23:40" },
+  { fn:"AS-6244", to:"Санкт-Петербург", iata:"LED", al:"ASO Airlines", t:"23:55" }
+];
+
+function getSamaraDate() {
+  const d = new Date();
+  d.setHours(d.getHours() + 4);
+  return d.toISOString().slice(0, 10);
 }
 
-async function saveFlights(flights) {
-  try {
-    await pool.query('DELETE FROM flights');
-    for (const f of flights) {
-      await pool.query('INSERT INTO flights (id, data) VALUES ($1, $2)', [f.id, JSON.stringify(f)]);
-    }
-  } catch(e) {}
+function getSamaraTomorrow() {
+  const d = new Date();
+  d.setHours(d.getHours() + 4);
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
-function getSamaraNow() {
-  const now = new Date();
-  const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
-  return new Date(utcMs + (4 * 3600000));
-}
-
-function getTodayStart() {
-  const now = getSamaraNow();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-}
-
-function getTomorrowStart() {
-  const t = getTodayStart();
-  return new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1, 0, 0, 0);
-}
-
-function getFlightDay(f) {
-  const dep = f.expectedDeparture 
-    ? new Date(f.expectedDeparture) 
-    : new Date(f.scheduledDeparture);
-  
-  if (!dep || isNaN(dep.getTime())) return 'today';
-  
-  const todayStart = getTodayStart();
-  const tomorrowStart = getTomorrowStart();
-  
-  if (dep >= tomorrowStart) return 'tomorrow';
-  return 'today';
-}
-
-function computeStatus(flight) {
-  if (flight.status === 'cancelled') return 'cancelled';
-  if (flight.status === 'departed') return 'departed';
-  
-  const now = getSamaraNow();
-  const ci = flight.checkInStart ? new Date(flight.checkInStart) : null;
-  const ce = flight.checkInEnd ? new Date(flight.checkInEnd) : null;
-  const bs = flight.boardingStart ? new Date(flight.boardingStart) : null;
-  const be = flight.boardingEnd ? new Date(flight.boardingEnd) : null;
-  
-  if (be && now > be) return 'boarding_completed';
-  if (bs && be && now >= bs && now <= be) return 'boarding';
-  if (ce && now > ce && (!bs || now < bs)) return 'checkin_completed';
-  if (ci && ce && now >= ci && now <= ce) return 'checkin';
-  
-  const sched = flight.scheduledDeparture ? new Date(flight.scheduledDeparture) : null;
-  const exp = flight.expectedDeparture ? new Date(flight.expectedDeparture) : null;
-  if (exp && sched && exp > sched && now < exp) return 'delayed';
-  
-  return 'scheduled';
-}
-
-function getStatusText(flight) {
-  if (flight.status === 'cancelled') return 'Отменён';
-  if (flight.status === 'departed') return 'Вылетел';
-  
-  const s = computeStatus(flight);
-  const exp = flight.expectedDeparture ? new Date(flight.expectedDeparture) : null;
-  const time = exp ? `${String(exp.getHours()).padStart(2,'0')}:${String(exp.getMinutes()).padStart(2,'0')}` : '';
-  
-  if (s === 'delayed') return `Задержан до ${time}`;
-  if (s === 'checkin') return 'Регистрация';
-  if (s === 'checkin_completed') return 'Регистрация закончена';
-  if (s === 'boarding') return 'Посадка';
-  if (s === 'boarding_completed') return 'Посадка закончена';
-  return 'По расписанию';
-}
-
-function enrich(flight) {
+function makeFlight(f, dateStr) {
   return {
-    ...flight,
-    flightDay: getFlightDay(flight),
-    computedStatus: computeStatus(flight),
-    statusText: getStatusText(flight)
+    id: f.fn + '-' + dateStr,
+    flightNumber: f.fn,
+    destination: f.to,
+    iataCode: f.iata,
+    airline: f.al,
+    scheduledTime: f.t,
+    scheduledDate: dateStr,
+    scheduledDeparture: dateStr + 'T' + f.t + ':00',
+    expectedDeparture: null,
+    checkInStart: null,
+    checkInEnd: null,
+    checkInCounters: '',
+    boardingStart: null,
+    boardingEnd: null,
+    boardingGate: '',
+    status: 'scheduled'
   };
 }
 
-// Очистка вылетевших рейсов за прошлый день
-async function cleanupDeparted() {
-  const flights = await loadFlights();
-  const todayStart = getTodayStart();
-  const cleaned = flights.filter(f => {
-    if (f.status === 'departed' && f.scheduledDeparture) {
-      const depDate = new Date(f.scheduledDeparture);
-      // Оставляем только сегодняшние вылетевшие
-      return depDate >= todayStart;
-    }
-    return true;
-  });
-  if (cleaned.length !== flights.length) {
-    await saveFlights(cleaned);
-  }
-  return cleaned;
+async function load() {
+  try { const r = await pool.query('SELECT data FROM flights'); return r.rows.map(x => x.data); }
+  catch(e) { return []; }
+}
+
+async function save(flights) {
+  try {
+    await pool.query('DELETE FROM flights');
+    for (const f of flights) await pool.query('INSERT INTO flights (id, data) VALUES ($1, $2)', [f.id, JSON.stringify(f)]);
+  } catch(e) {}
 }
 
 app.get('/api/flights', async (req, res) => {
-  let flights = (await cleanupDeparted()).map(enrich);
-  const showDeparted = req.query.showDeparted === 'true';
+  let flights = await load();
+  const today = getSamaraDate();
+  const tomorrow = getSamaraTomorrow();
+  const exist = new Set(flights.map(f => f.id));
+  const add = [];
   
-  // Фильтруем вылетевшие если нужно
-  if (!showDeparted) {
-    flights = flights.filter(f => f.status !== 'departed');
+  for (const f of DAILY) {
+    if (!exist.has(f.fn + '-' + today)) add.push(makeFlight(f, today));
+    if (!exist.has(f.fn + '-' + tomorrow)) add.push(makeFlight(f, tomorrow));
   }
   
-  // Сортировка: по ожидаемому времени (если есть), иначе по плановому
-  flights.sort((a, b) => {
-    const getTime = (f) => {
-      if (f.expectedDeparture) return new Date(f.expectedDeparture).getTime();
-      if (f.scheduledDeparture) return new Date(f.scheduledDeparture).getTime();
-      return 0;
-    };
-    return getTime(a) - getTime(b);
+  if (add.length) {
+    flights.push(...add);
+    await save(flights);
+  }
+  
+  // Очистка вчерашних departed
+  const cleaned = flights.filter(f => {
+    if (f.status === 'departed' && f.scheduledDate) {
+      return f.scheduledDate >= today;
+    }
+    return true;
   });
   
-  res.json(flights);
+  if (cleaned.length !== flights.length) {
+    flights = cleaned;
+    await save(flights);
+  }
+  
+  const showDep = req.query.showDeparted === 'true';
+  let result = flights;
+  if (!showDep) result = result.filter(f => f.status !== 'departed');
+  
+  result.sort((a, b) => (a.scheduledTime || '').localeCompare(b.scheduledTime || ''));
+  
+  result = result.map(f => ({
+    ...f,
+    flightDay: (f.scheduledDate || '') === tomorrow ? 'tomorrow' : 'today',
+    statusText: f.status === 'cancelled' ? 'Отменён' : f.status === 'departed' ? 'Вылетел' : 'По расписанию'
+  }));
+  
+  res.json(result);
 });
 
 app.post('/api/flights', async (req, res) => {
-  let flights = await loadFlights();
-  const flight = {
+  const flights = await load();
+  const f = {
     id: Date.now().toString(),
     flightNumber: req.body.flightNumber || '',
     destination: req.body.destination || '',
     iataCode: req.body.iataCode || '',
     airline: req.body.airline || '',
+    scheduledTime: req.body.scheduledTime || '',
+    scheduledDate: req.body.scheduledDate || getSamaraDate(),
     scheduledDeparture: req.body.scheduledDeparture || null,
     expectedDeparture: req.body.expectedDeparture || null,
     checkInStart: req.body.checkInStart || null,
@@ -168,24 +162,24 @@ app.post('/api/flights', async (req, res) => {
     boardingGate: req.body.boardingGate || '',
     status: req.body.status || 'scheduled'
   };
-  flights.push(flight);
-  await saveFlights(flights);
-  res.status(201).json(enrich(flight));
+  flights.push(f);
+  await save(flights);
+  res.status(201).json(f);
 });
 
 app.put('/api/flights/:id', async (req, res) => {
-  const flights = await loadFlights();
+  const flights = await load();
   const i = flights.findIndex(f => f.id === req.params.id);
   if (i === -1) return res.status(404).json({ error: 'Не найден' });
   flights[i] = { ...flights[i], ...req.body, id: flights[i].id };
-  await saveFlights(flights);
-  res.json(enrich(flights[i]));
+  await save(flights);
+  res.json(flights[i]);
 });
 
 app.delete('/api/flights/:id', async (req, res) => {
-  let flights = await loadFlights();
+  let flights = await load();
   flights = flights.filter(f => f.id !== req.params.id);
-  await saveFlights(flights);
+  await save(flights);
   res.status(204).send();
 });
 
