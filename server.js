@@ -58,12 +58,11 @@ const DAILY_FLIGHTS = [
 
 function makeFlight(f, date) {
   const [h, m] = f.time.split(':').map(Number);
-  // Самарское время = UTC+4. Чтобы 02:30 по Самаре было 02:30 в ISO, создаём как UTC+4
-  const dep = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), h, m, 0));
-  // Конвертируем в ISO, но так как JS считает это UTC, нам нужно вычесть 4 часа чтобы получить правильное локальное время
-  const depLocal = new Date(dep.getTime() - 4 * 3600000);
-  const ci = new Date(depLocal.getTime() - 3 * 3600000);
-  const ce = new Date(depLocal.getTime() - 40 * 60000);
+  // Используем локальное время сервера. Сервер в UTC, но мы передаём строку как есть.
+  const depStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
+  const dep = new Date(depStr);
+  const ci = new Date(dep.getTime() - 3 * 3600000);
+  const ce = new Date(dep.getTime() - 40 * 60000);
   const dateStr = date.toISOString().slice(0, 10);
   const id = f.flightNumber + '-' + dateStr;
   return {
@@ -72,7 +71,7 @@ function makeFlight(f, date) {
     destination: f.destination,
     iataCode: f.iataCode,
     airline: f.airline,
-    scheduledDeparture: depLocal.toISOString(),
+    scheduledDeparture: dep.toISOString(),
     expectedDeparture: null,
     checkInStart: ci.toISOString(),
     checkInEnd: ce.toISOString(),
@@ -123,19 +122,17 @@ async function saveFlights(flights) {
 }
 
 function getSamaraNow() {
-  const now = new Date();
-  const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
-  return new Date(utcMs + (4 * 3600000));
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Samara' }));
 }
 
 function getTodayStart() {
   const now = getSamaraNow();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0));
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
 }
 
 function getTomorrowStart() {
-  const t = new Date(getTodayStart());
-  return new Date(t.getTime() + 86400000);
+  const t = getTodayStart();
+  return new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1, 0, 0, 0);
 }
 
 function getFlightDay(f) {
