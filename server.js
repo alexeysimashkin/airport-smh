@@ -56,6 +56,9 @@ function getStatusText(f) {
   if (f.status === 'cancelled') return 'Отменён';
   if (f.status === 'departed') return 'Вылетел';
   const s = computeStatus(f);
+  const exp = f.expectedDeparture ? new Date(f.expectedDeparture) : null;
+  const time = exp ? `${String(exp.getHours()).padStart(2,'0')}:${String(exp.getMinutes()).padStart(2,'0')}` : '';
+  if (s === 'delayed') return `Задержан до ${time}`;
   if (s === 'checkin') return 'Регистрация';
   if (s === 'checkin_completed') return 'Регистрация закончена';
   if (s === 'boarding') return 'Посадка';
@@ -66,6 +69,24 @@ function getStatusText(f) {
 app.get('/api/flights', async (req, res) => {
   let flights = await load();
   const showDep = req.query.showDeparted === 'true';
+  
+  // Очистка вчерашних departed
+  const today = getSamaraNow().toISOString().slice(0, 10);
+  const cleaned = flights.filter(f => {
+    if (f.status === 'departed' && f.scheduledDeparture) {
+      return f.scheduledDeparture.slice(0, 10) >= today;
+    }
+    return true;
+  });
+  
+  if (cleaned.length !== flights.length) {
+    const toDelete = flights.filter(f => !cleaned.includes(f));
+    for (const f of toDelete) {
+      await pool.query('DELETE FROM flights WHERE id = $1', [f.id]);
+    }
+    flights = cleaned;
+  }
+  
   if (!showDep) flights = flights.filter(f => f.status !== 'departed');
   
   flights = flights.map(f => ({
@@ -74,7 +95,13 @@ app.get('/api/flights', async (req, res) => {
     statusText: getStatusText(f)
   }));
   
-  flights.sort((a, b) => (a.scheduledDeparture || '').localeCompare(b.scheduledDeparture || ''));
+  // Сортировка по ожидаемому времени
+  flights.sort((a, b) => {
+    const timeA = a.expectedDeparture || a.scheduledDeparture || '';
+    const timeB = b.expectedDeparture || b.scheduledDeparture || '';
+    return timeA.localeCompare(timeB);
+  });
+  
   res.json(flights);
 });
 
