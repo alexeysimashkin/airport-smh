@@ -24,6 +24,20 @@ async function saveOne(f) {
   );
 }
 
+async function cleanupDeparted() {
+  const flights = await load();
+  const today = getSamaraNow().toISOString().slice(0, 10);
+  const cleaned = flights.filter(f => {
+    if (f.status === 'departed' && f.scheduledDeparture) return f.scheduledDeparture.slice(0, 10) >= today;
+    return true;
+  });
+  if (cleaned.length !== flights.length) {
+    for (const f of flights) {
+      if (!cleaned.includes(f)) await pool.query('DELETE FROM flights WHERE id = $1', [f.id]);
+    }
+  }
+}
+
 function getSamaraNow() {
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -33,22 +47,18 @@ function getSamaraNow() {
 function computeStatus(f) {
   if (f.status === 'cancelled') return 'cancelled';
   if (f.status === 'departed') return 'departed';
-  
   const now = getSamaraNow();
   const ci = f.checkInStart ? new Date(f.checkInStart) : null;
   const ce = f.checkInEnd ? new Date(f.checkInEnd) : null;
   const bs = f.boardingStart ? new Date(f.boardingStart) : null;
   const be = f.boardingEnd ? new Date(f.boardingEnd) : null;
-  
   if (be && now > be) return 'boarding_completed';
   if (bs && be && now >= bs && now <= be) return 'boarding';
   if (ce && now > ce && (!bs || now < bs)) return 'checkin_completed';
   if (ci && ce && now >= ci && now <= ce) return 'checkin';
-  
   const sched = f.scheduledDeparture ? new Date(f.scheduledDeparture) : null;
   const exp = f.expectedDeparture ? new Date(f.expectedDeparture) : null;
   if (exp && sched && exp > sched && now < exp) return 'delayed';
-  
   return 'scheduled';
 }
 
@@ -66,46 +76,46 @@ function getStatusText(f) {
   return 'По расписанию';
 }
 
+function getFlightDay(f) {
+  const dep = f.expectedDeparture 
+    ? new Date(f.expectedDeparture) 
+    : f.scheduledDeparture 
+      ? new Date(f.scheduledDeparture) 
+      : null;
+  if (!dep || isNaN(dep.getTime())) return 'today';
+  
+  const now = getSamaraNow();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  const tomorrowStart = new Date(todayStart.getTime() + 86400000);
+  
+  if (dep >= tomorrowStart) return 'tomorrow';
+  return 'today';
+}
+
 app.get('/api/flights', async (req, res) => {
   let flights = await load();
   const showDep = req.query.showDeparted === 'true';
   
-  // Очистка вчерашних departed
-  const today = getSamaraNow().toISOString().slice(0, 10);
-  const cleaned = flights.filter(f => {
-    if (f.status === 'departed' && f.scheduledDeparture) {
-      return f.scheduledDeparture.slice(0, 10) >= today;
-    }
-    return true;
-  });
-  
-  if (cleaned.length !== flights.length) {
-    const toDelete = flights.filter(f => !cleaned.includes(f));
-    for (const f of toDelete) {
-      await pool.query('DELETE FROM flights WHERE id = $1', [f.id]);
-    }
-    flights = cleaned;
-  }
-  
   if (!showDep) flights = flights.filter(f => f.status !== 'departed');
   
-  flights = flights.map(f => ({
-    ...f,
-    computedStatus: computeStatus(f),
-    statusText: getStatusText(f)
+  flights = flights.map(f => ({ 
+    ...f, 
+    computedStatus: computeStatus(f), 
+    statusText: getStatusText(f),
+    flightDay: getFlightDay(f)
   }));
   
-  // Сортировка по ожидаемому времени
   flights.sort((a, b) => {
-    const timeA = a.expectedDeparture || a.scheduledDeparture || '';
-    const timeB = b.expectedDeparture || b.scheduledDeparture || '';
-    return timeA.localeCompare(timeB);
+    const ta = a.expectedDeparture || a.scheduledDeparture || '';
+    const tb = b.expectedDeparture || b.scheduledDeparture || '';
+    return ta.localeCompare(tb);
   });
   
   res.json(flights);
 });
 
 app.post('/api/flights', async (req, res) => {
+  await cleanupDeparted();
   const f = {
     id: Date.now().toString(),
     flightNumber: req.body.flightNumber || '',
@@ -127,6 +137,7 @@ app.post('/api/flights', async (req, res) => {
 });
 
 app.put('/api/flights/:id', async (req, res) => {
+  await cleanupDeparted();
   const flights = await load();
   const i = flights.findIndex(f => f.id === req.params.id);
   if (i === -1) return res.status(404).json({ error: 'Не найден' });
@@ -143,5 +154,5 @@ app.delete('/api/flights/:id', async (req, res) => {
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('OK'));
+app.listen(PORT, () => console.log('Симашкино OK'));
 module.exports = app;
