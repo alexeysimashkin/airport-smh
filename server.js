@@ -28,7 +28,9 @@ async function cleanupDeparted() {
   const flights = await load();
   const today = getSamaraNow().toISOString().slice(0, 10);
   const cleaned = flights.filter(f => {
-    if (f.status === 'departed' && f.scheduledDeparture) return f.scheduledDeparture.slice(0, 10) >= today;
+    if ((f.status === 'departed' || f.status === 'early_departed') && f.scheduledDeparture) {
+      return f.scheduledDeparture.slice(0, 10) >= today;
+    }
     return true;
   });
   if (cleaned.length !== flights.length) {
@@ -45,29 +47,42 @@ function getSamaraNow() {
 }
 
 function computeStatus(f) {
+  // Явные статусы — не вычисляем автоматически
   if (f.status === 'cancelled') return 'cancelled';
   if (f.status === 'departed') return 'departed';
+  if (f.status === 'early_departed') return 'early_departed';
+  if (f.status === 'suspended') return 'suspended';
+  
   const now = getSamaraNow();
   const ci = f.checkInStart ? new Date(f.checkInStart) : null;
   const ce = f.checkInEnd ? new Date(f.checkInEnd) : null;
   const bs = f.boardingStart ? new Date(f.boardingStart) : null;
   const be = f.boardingEnd ? new Date(f.boardingEnd) : null;
+  
   if (be && now > be) return 'boarding_completed';
   if (bs && be && now >= bs && now <= be) return 'boarding';
   if (ce && now > ce && (!bs || now < bs)) return 'checkin_completed';
   if (ci && ce && now >= ci && now <= ce) return 'checkin';
+  
   const sched = f.scheduledDeparture ? new Date(f.scheduledDeparture) : null;
   const exp = f.expectedDeparture ? new Date(f.expectedDeparture) : null;
+  if (exp && sched && exp < sched && now < sched) return 'early';
   if (exp && sched && exp > sched && now < exp) return 'delayed';
+  
   return 'scheduled';
 }
 
 function getStatusText(f) {
   if (f.status === 'cancelled') return 'Отменён';
   if (f.status === 'departed') return 'Вылетел';
+  if (f.status === 'early_departed') return 'Вылетел ранее';
+  if (f.status === 'suspended') return 'Приостановлено';
+  
   const s = computeStatus(f);
   const exp = f.expectedDeparture ? new Date(f.expectedDeparture) : null;
   const time = exp ? `${String(exp.getHours()).padStart(2,'0')}:${String(exp.getMinutes()).padStart(2,'0')}` : '';
+  
+  if (s === 'early') return `Ранний вылет`;
   if (s === 'delayed') return `Задержан до ${time}`;
   if (s === 'checkin') return 'Регистрация';
   if (s === 'checkin_completed') return 'Регистрация закончена';
@@ -95,8 +110,23 @@ function getFlightDay(f) {
 app.get('/api/flights', async (req, res) => {
   let flights = await load();
   const showDep = req.query.showDeparted === 'true';
+  const today = getSamaraNow().toISOString().slice(0, 10);
   
-  if (!showDep) flights = flights.filter(f => f.status !== 'departed');
+  // Очистка вчерашних departed/early_departed
+  const cleaned = flights.filter(f => {
+    if ((f.status === 'departed' || f.status === 'early_departed') && f.scheduledDeparture) {
+      return f.scheduledDeparture.slice(0, 10) >= today;
+    }
+    return true;
+  });
+  if (cleaned.length !== flights.length) {
+    for (const f of flights) {
+      if (!cleaned.includes(f)) await pool.query('DELETE FROM flights WHERE id = $1', [f.id]);
+    }
+    flights = cleaned;
+  }
+  
+  if (!showDep) flights = flights.filter(f => f.status !== 'departed' && f.status !== 'early_departed');
   
   flights = flights.map(f => ({ 
     ...f, 
