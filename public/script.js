@@ -51,18 +51,23 @@ function fmtDateOnly(s) {
 }
 
 async function load() {
-  const r = await fetch(`${API}?showDeparted=${showDeparted}`);
-  currentFlights = await r.json();
-  renderAll();
-  const now = getSamaraNow();
-  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-  lastUpdated.textContent = ts;
-  lastUpdated2.textContent = ts;
+  try {
+    const r = await fetch(`${API}?showDeparted=${showDeparted}`);
+    currentFlights = await r.json();
+    renderAll();
+    const now = getSamaraNow();
+    const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    lastUpdated.textContent = ts;
+    lastUpdated2.textContent = ts;
+  } catch(e) { console.log('Ошибка загрузки:', e); }
 }
 
 function getTagClass(f) {
   if (f.status === 'cancelled') return 'tag-cancel';
   if (f.status === 'departed') return 'tag-departed';
+  if (f.status === 'early_departed') return 'tag-departed';
+  if (f.status === 'suspended') return 'tag-suspended';
+  if (f.computedStatus === 'early') return 'tag-early';
   if (f.computedStatus === 'checkin') return 'tag-checkin';
   if (f.computedStatus === 'checkin_completed') return 'tag-checkin-end';
   if (f.computedStatus === 'boarding') return 'tag-boarding';
@@ -73,13 +78,14 @@ function getTagClass(f) {
 
 function renderFlightRow(f) {
   const delayed = f.expectedDeparture && new Date(f.expectedDeparture) > new Date(f.scheduledDeparture);
-  const departed = f.status === 'departed';
+  const early = f.computedStatus === 'early';
+  const departed = f.status === 'departed' || f.status === 'early_departed';
   const cancelled = f.status === 'cancelled';
   
   let timeHtml;
   if (cancelled || departed) {
     timeHtml = `<span class="time-old">${fmtTm(f.scheduledDeparture)}</span>`;
-  } else if (delayed) {
+  } else if (delayed || early) {
     timeHtml = `<span class="time-old">${fmtTm(f.scheduledDeparture)}</span><br><span class="time-new">${fmtTm(f.expectedDeparture)}</span>`;
   } else {
     timeHtml = fmtTm(f.scheduledDeparture);
@@ -96,8 +102,7 @@ function renderFlightRow(f) {
 }
 
 function renderAll() {
-  // Админка — учитываем showDeparted
-  const adminFlights = showDeparted ? currentFlights : currentFlights.filter(f => f.status !== 'departed');
+  const adminFlights = showDeparted ? currentFlights : currentFlights.filter(f => f.status !== 'departed' && f.status !== 'early_departed');
   
   if (!adminFlights.length) {
     adminList.innerHTML = '<p style="text-align:center;color:var(--gray-400);padding:20px;">Нет рейсов</p>';
@@ -117,9 +122,8 @@ function renderAll() {
     `).join('');
   }
   
-  // Сегодня
   const todayFlights = currentFlights.filter(f => {
-    if (f.status === 'departed') return showDeparted;
+    if (f.status === 'departed' || f.status === 'early_departed') return showDeparted;
     const day = f.flightDay || 'today';
     return day === 'today';
   });
@@ -128,9 +132,8 @@ function renderAll() {
     ? `<tr class="empty"><td colspan="6"><div class="empty-msg"><i class="fas fa-plane"></i><p>Нет рейсов на сегодня</p></div></td></tr>`
     : todayFlights.map(renderFlightRow).join('');
   
-  // Завтра
   const tomorrowFlights = currentFlights.filter(f => {
-    if (f.status === 'departed') return false;
+    if (f.status === 'departed' || f.status === 'early_departed') return false;
     const day = f.flightDay || 'today';
     return day === 'tomorrow';
   });
@@ -147,7 +150,8 @@ window.showDetail = function(id) {
   modalTitle.textContent = `Рейс ${f.flightNumber}`;
   
   const delayed = f.expectedDeparture && new Date(f.expectedDeparture) > new Date(f.scheduledDeparture);
-  const delayHtml = delayed ? `<div class="modal-delay-banner"><i class="fas fa-clock"></i><span>Задержан до ${fmtTm(f.expectedDeparture)}</span></div>` : '';
+  const early = f.computedStatus === 'early';
+  const delayHtml = (delayed || early) ? `<div class="modal-delay-banner"><i class="fas fa-clock"></i><span>${early ? 'Ранний вылет' : 'Задержан до ' + fmtTm(f.expectedDeparture)}</span></div>` : '';
   
   modalBody.innerHTML = `
     <div class="modal-flight-top">
@@ -165,11 +169,7 @@ window.showDetail = function(id) {
     <div class="modal-fs-info-row"><span>Россия</span></div>
     <div class="modal-fs-table">
       <div class="modal-fs-table-row header">
-        <div>Дата вылета</div>
-        <div>Время по расписанию</div>
-        <div>Ожидаемое время</div>
-        <div>Выход</div>
-        <div>Терминал</div>
+        <div>Дата вылета</div><div>Время по расписанию</div><div>Ожидаемое время</div><div>Выход</div><div>Терминал</div>
       </div>
       <div class="modal-fs-table-row">
         <div><strong>${fmtDateOnly(f.scheduledDeparture)}</strong></div>
@@ -182,14 +182,14 @@ window.showDetail = function(id) {
     <div class="modal-fs-timeline">
       <h3>Регистрация</h3>
       <div class="timeline-items">
-        <div class="timeline-item ${['checkin_completed','boarding','boarding_completed','departed'].includes(f.computedStatus) ? 'done' : ''}">
+        <div class="timeline-item ${['checkin_completed','boarding','boarding_completed','departed','early_departed'].includes(f.computedStatus) ? 'done' : ''}">
           <div class="timeline-dot"></div>
           <div class="timeline-content">
             <div class="timeline-time">${fmtTm(f.checkInStart)}</div>
             <div class="timeline-label">Начало регистрации${f.checkInCounters ? ' • Стойки ' + f.checkInCounters : ''}</div>
           </div>
         </div>
-        <div class="timeline-item ${['checkin_completed','boarding','boarding_completed','departed'].includes(f.computedStatus) ? 'done' : ''}">
+        <div class="timeline-item ${['checkin_completed','boarding','boarding_completed','departed','early_departed'].includes(f.computedStatus) ? 'done' : ''}">
           <div class="timeline-dot"></div>
           <div class="timeline-content">
             <div class="timeline-time">${fmtTm(f.checkInEnd)}</div>
@@ -197,7 +197,7 @@ window.showDetail = function(id) {
           </div>
         </div>
         ${f.boardingStart ? `
-        <div class="timeline-item ${['boarding','boarding_completed','departed'].includes(f.computedStatus) ? 'active' : ''}">
+        <div class="timeline-item ${['boarding','boarding_completed','departed','early_departed'].includes(f.computedStatus) ? 'active' : ''}">
           <div class="timeline-dot"></div>
           <div class="timeline-content">
             <div class="timeline-time">${fmtTm(f.boardingStart)}</div>
