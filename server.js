@@ -80,21 +80,12 @@ function getTomorrowStr() {
 function makeFlight(f, dateStr) {
   const id = f.flightNumber + '-' + dateStr;
   return {
-    id,
-    flightNumber: f.flightNumber,
-    destination: f.destination,
-    iataCode: f.iataCode,
-    airline: f.airline,
-    scheduledTime: f.time,
+    id, flightNumber: f.flightNumber, destination: f.destination,
+    iataCode: f.iataCode, airline: f.airline, scheduledTime: f.time,
     scheduledDeparture: dateStr + 'T' + f.time + ':00',
-    expectedDeparture: null,
-    checkInStart: null,
-    checkInEnd: null,
-    checkInCounters: '',
-    boardingStart: null,
-    boardingEnd: null,
-    boardingGate: '',
-    status: 'scheduled'
+    expectedDeparture: null, checkInStart: null, checkInEnd: null,
+    checkInCounters: '', boardingStart: null, boardingEnd: null,
+    boardingGate: '', status: 'scheduled'
   };
 }
 
@@ -117,7 +108,6 @@ async function ensureDailyFlights() {
   const tomorrow = getTomorrowStr();
   const existingIds = new Set(flights.map(f => f.id));
   const toAdd = [];
-  
   for (const str of DAILY_FLIGHTS) {
     const f = parseFlight(str);
     const idToday = f.flightNumber + '-' + today;
@@ -125,10 +115,7 @@ async function ensureDailyFlights() {
     const idTomorrow = f.flightNumber + '-' + tomorrow;
     if (!existingIds.has(idTomorrow)) toAdd.push(makeFlight(f, tomorrow));
   }
-  
-  if (toAdd.length > 0) {
-    for (const f of toAdd) await saveOne(f, 'departures');
-  }
+  if (toAdd.length > 0) for (const f of toAdd) await saveOne(f, 'departures');
 }
 
 function getLocalNow() {
@@ -194,16 +181,30 @@ function getFlightDay(f) {
   return 'today';
 }
 
+// API
 app.get('/api/airport-status', async (req, res) => {
-  try {
-    const r = await pool.query(`SELECT value FROM settings WHERE key = 'airport_status'`);
-    res.json({ status: r.rows[0]?.value || 'open' });
-  } catch(e) { res.json({ status: 'open' }); }
+  try { const r = await pool.query(`SELECT value FROM settings WHERE key = 'airport_status'`); res.json({ status: r.rows[0]?.value || 'open' }); }
+  catch(e) { res.json({ status: 'open' }); }
 });
 
 app.post('/api/airport-status', async (req, res) => {
   await pool.query(`INSERT INTO settings (key, value) VALUES ('airport_status', $1) ON CONFLICT (key) DO UPDATE SET value = $1`, [req.body.status]);
   res.json({ status: req.body.status });
+});
+
+app.get('/api/urgent', async (req, res) => {
+  try { const r = await pool.query(`SELECT value FROM settings WHERE key = 'urgent_info'`); res.json({ text: r.rows[0]?.value || '' }); }
+  catch(e) { res.json({ text: '' }); }
+});
+
+app.post('/api/urgent', async (req, res) => {
+  await pool.query(`INSERT INTO settings (key, value) VALUES ('urgent_info', $1) ON CONFLICT (key) DO UPDATE SET value = $1`, [req.body.text]);
+  res.json({ text: req.body.text });
+});
+
+app.delete('/api/urgent', async (req, res) => {
+  await pool.query(`DELETE FROM settings WHERE key = 'urgent_info'`);
+  res.json({ text: '' });
 });
 
 app.get('/api/flights', async (req, res) => {
