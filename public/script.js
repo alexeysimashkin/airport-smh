@@ -50,6 +50,77 @@ function fmtDateOnly(s) {
   return `${d.getDate()} ${months[d.getMonth()]}`;
 }
 
+// ============ АЭРОПОРТ ОТКРЫТ/ЗАКРЫТ ============
+async function loadAirportStatus() {
+  try {
+    const r = await fetch('/api/airport-status');
+    const data = await r.json();
+    updateBanner(data.status);
+  } catch(e) {}
+}
+
+function updateBanner(status) {
+  const banner = $('airportBanner');
+  if (status === 'closed') {
+    banner.classList.add('closed');
+    banner.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span id="airportBannerText">Аэропорт закрыт</span>';
+    $('btnAirportClosed').style.display = 'none';
+    $('btnAirportOpen').style.display = 'flex';
+  } else {
+    banner.classList.remove('closed');
+    banner.innerHTML = '<i class="fas fa-check-circle"></i> <span id="airportBannerText">Аэропорт открыт</span>';
+    $('btnAirportOpen').style.display = 'none';
+    $('btnAirportClosed').style.display = 'flex';
+  }
+}
+
+async function setAirportStatus(status) {
+  await fetch('/api/airport-status', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status })
+  });
+  updateBanner(status);
+}
+
+$('btnAirportClosed').addEventListener('click', () => setAirportStatus('closed'));
+$('btnAirportOpen').addEventListener('click', () => setAirportStatus('open'));
+
+// ============ СРОЧНАЯ ИНФОРМАЦИЯ ============
+async function loadUrgent() {
+  try {
+    const r = await fetch('/api/urgent');
+    const data = await r.json();
+    if (data.text) {
+      $('urgentInfo').style.display = 'flex';
+      $('urgentInfoText').textContent = data.text;
+      $('urgentInput').value = data.text;
+      $('btnUrgentDelete').style.display = 'flex';
+    } else {
+      $('urgentInfo').style.display = 'none';
+      $('urgentInput').value = '';
+      $('btnUrgentDelete').style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+$('btnUrgentSave').addEventListener('click', async () => {
+  const text = $('urgentInput').value.trim();
+  if (!text) return;
+  await fetch('/api/urgent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  loadUrgent();
+});
+
+$('btnUrgentDelete').addEventListener('click', async () => {
+  await fetch('/api/urgent', { method: 'DELETE' });
+  loadUrgent();
+});
+
+// ============ ЗАГРУЗКА РЕЙСОВ ============
 async function load() {
   try {
     const r = await fetch(`${API}?showDeparted=${showDeparted}`);
@@ -64,8 +135,7 @@ async function load() {
 
 function getTagClass(f) {
   if (f.status === 'cancelled') return 'tag-cancel';
-  if (f.status === 'departed') return 'tag-departed';
-  if (f.status === 'early_departed') return 'tag-departed';
+  if (f.status === 'departed' || f.status === 'early_departed') return 'tag-departed';
   if (f.status === 'suspended') return 'tag-suspended';
   if (f.computedStatus === 'early') return 'tag-early';
   if (f.computedStatus === 'checkin') return 'tag-checkin';
@@ -81,6 +151,7 @@ function renderFlightRow(f) {
   const early = f.computedStatus === 'early';
   const departed = f.status === 'departed' || f.status === 'early_departed';
   const cancelled = f.status === 'cancelled';
+  const feeding = f.status === 'feeding';
   
   let timeHtml;
   if (cancelled || departed) {
@@ -91,13 +162,18 @@ function renderFlightRow(f) {
     timeHtml = fmtTm(f.scheduledDeparture);
   }
   
+  let statusHtml = `<span class="status-tag ${getTagClass(f)}">${(f.statusText || 'По расписанию').replace(/\n/g,'<br>')}</span>`;
+  if (feeding) {
+    statusHtml += `<span class="status-feeding-sub">Предоставление питания</span>`;
+  }
+  
   return `<tr onclick="showDetail('${f.id}')" style="${departed ? 'opacity:0.6;' : ''}">
     <td class="time-cell">${timeHtml}</td>
     <td><div class="dest-cell"><span class="dest-name">${f.destination}</span><span class="dest-iata">${f.iataCode || ''}</span></div></td>
     <td class="flight-num">${f.flightNumber}</td>
     <td><div class="airline-cell"><div class="airline-avatar">${(f.airline || 'A').charAt(0)}</div>${f.airline || ''}</div></td>
     <td class="gate-cell">${f.boardingGate || '—'}</td>
-    <td><span class="status-tag ${getTagClass(f)}">${(f.statusText || 'По расписанию').replace(/\n/g,'<br>')}</span></td>
+    <td>${statusHtml}</td>
   </tr>`;
 }
 
@@ -153,13 +229,17 @@ window.showDetail = function(id) {
   const early = f.computedStatus === 'early';
   const delayHtml = (delayed || early) ? `<div class="modal-delay-banner"><i class="fas fa-clock"></i><span>${early ? 'Ранний вылет' : 'Задержан до ' + fmtTm(f.expectedDeparture)}</span></div>` : '';
   
+  const tagClass = getTagClass(f);
+  const doneCheckIn = ['checkin_completed','boarding','boarding_completed','departed','early_departed'].includes(f.computedStatus);
+  const activeBoarding = ['boarding','boarding_completed'].includes(f.computedStatus);
+  
   modalBody.innerHTML = `
     <div class="modal-flight-top">
       <div>
         <div class="modal-flight-num">${f.flightNumber}</div>
-        <div class="modal-flight-airline">Выполняет: ${f.airline || '—'}</div>
+        <div class="modal-flight-airline">${f.airline || '—'}</div>
       </div>
-      <span class="status-tag ${getTagClass(f)}" style="font-size:14px;">${(f.statusText || 'По расписанию').replace(/\n/g,'<br>')}</span>
+      <span class="status-tag ${tagClass}" style="font-size:14px;">${(f.statusText || 'По расписанию').replace(/\n/g,'<br>')}</span>
     </div>
     ${delayHtml}
     <div class="modal-fs-destination">
@@ -169,7 +249,7 @@ window.showDetail = function(id) {
     <div class="modal-fs-info-row"><span>Россия</span></div>
     <div class="modal-fs-table">
       <div class="modal-fs-table-row header">
-        <div>Дата вылета</div><div>Время по расписанию</div><div>Ожидаемое время</div><div>Выход</div><div>Терминал</div>
+        <div>Дата</div><div>Время по расписанию</div><div>Ожидаемое время</div><div>Выход</div><div>Терминал</div>
       </div>
       <div class="modal-fs-table-row">
         <div><strong>${fmtDateOnly(f.scheduledDeparture)}</strong></div>
@@ -180,16 +260,16 @@ window.showDetail = function(id) {
       </div>
     </div>
     <div class="modal-fs-timeline">
-      <h3>Регистрация</h3>
+      <h3>Регистрация и посадка</h3>
       <div class="timeline-items">
-        <div class="timeline-item ${['checkin_completed','boarding','boarding_completed','departed','early_departed'].includes(f.computedStatus) ? 'done' : ''}">
+        <div class="timeline-item ${doneCheckIn ? 'done' : ''}">
           <div class="timeline-dot"></div>
           <div class="timeline-content">
             <div class="timeline-time">${fmtTm(f.checkInStart)}</div>
             <div class="timeline-label">Начало регистрации${f.checkInCounters ? ' • Стойки ' + f.checkInCounters : ''}</div>
           </div>
         </div>
-        <div class="timeline-item ${['checkin_completed','boarding','boarding_completed','departed','early_departed'].includes(f.computedStatus) ? 'done' : ''}">
+        <div class="timeline-item ${doneCheckIn ? 'done' : ''}">
           <div class="timeline-dot"></div>
           <div class="timeline-content">
             <div class="timeline-time">${fmtTm(f.checkInEnd)}</div>
@@ -197,23 +277,30 @@ window.showDetail = function(id) {
           </div>
         </div>
         ${f.boardingStart ? `
-        <div class="timeline-item ${['boarding','boarding_completed','departed','early_departed'].includes(f.computedStatus) ? 'active' : ''}">
+        <div class="timeline-item ${activeBoarding ? 'active' : ''}">
           <div class="timeline-dot"></div>
           <div class="timeline-content">
             <div class="timeline-time">${fmtTm(f.boardingStart)}</div>
-            <div class="timeline-label">Посадка${f.boardingGate ? ' • Выход ' + f.boardingGate : ''}</div>
+            <div class="timeline-label">Начало посадки${f.boardingGate ? ' • Выход ' + f.boardingGate : ''}</div>
           </div>
-        </div>` : ''}
+        </div>
+        ${f.boardingEnd ? `
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-time">${fmtTm(f.boardingEnd)}</div>
+            <div class="timeline-label">Окончание посадки</div>
+          </div>
+        </div>` : ''}` : ''}
       </div>
-    </div>
-    <div class="modal-fs-status">
-      <span class="status-tag ${getTagClass(f)}" style="font-size:15px;padding:10px 24px;">${(f.statusText || 'По расписанию').replace(/\n/g,'<br>')}</span>
     </div>
     <div class="modal-fs-extra">
       <div class="modal-fs-extra-item"><span class="extra-label">Авиакомпания</span><span class="extra-value">${f.airline || '—'}</span></div>
-      <div class="modal-fs-extra-item"><span class="extra-label">Вылет по расписанию</span><span class="extra-value">${fmtDt(f.scheduledDeparture)}</span></div>
-      <div class="modal-fs-extra-item"><span class="extra-label">Ожидаемый вылет</span><span class="extra-value">${fmtDt(f.expectedDeparture)}</span></div>
-      <div class="modal-fs-extra-item"><span class="extra-label">Выход на посадку</span><span class="extra-value">${f.boardingGate || '—'}</span></div>
+      <div class="modal-fs-extra-item"><span class="extra-label">По расписанию</span><span class="extra-value">${fmtDt(f.scheduledDeparture)}</span></div>
+      <div class="modal-fs-extra-item"><span class="extra-label">Ожидаемое</span><span class="extra-value">${fmtDt(f.expectedDeparture)}</span></div>
+      <div class="modal-fs-extra-item"><span class="extra-label">Регистрация</span><span class="extra-value">${fmtTm(f.checkInStart)} — ${fmtTm(f.checkInEnd)}</span></div>
+      <div class="modal-fs-extra-item"><span class="extra-label">Посадка</span><span class="extra-value">${fmtTm(f.boardingStart)} — ${fmtTm(f.boardingEnd)}</span></div>
+      <div class="modal-fs-extra-item"><span class="extra-label">Стойки</span><span class="extra-value">${f.checkInCounters || '—'}</span></div>
     </div>`;
 
   modalOverlay.classList.add('show');
@@ -298,4 +385,6 @@ $('flightFormInner').onsubmit = async function(e) {
 };
 
 setInterval(load, 30000);
+loadAirportStatus();
+loadUrgent();
 load();
