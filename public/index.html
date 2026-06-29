@@ -17,6 +17,16 @@
       Аэропорт Симашкино является игровым аэропортом и никак не является официальным аэропортом города Самара. Использование рейсов из официального аэропорта Самары является частью игры — интереса к миру авиации.
     </div>
 
+    <!-- БАННЕР СОСТОЯНИЯ АЭРОПОРТА -->
+    <div class="airport-banner" id="airportBanner">
+      <i class="fas fa-check-circle"></i> <span id="airportBannerText">Аэропорт открыт</span>
+    </div>
+
+    <!-- СРОЧНАЯ ИНФОРМАЦИЯ -->
+    <div class="urgent-info" id="urgentInfo" style="display:none;">
+      <i class="fas fa-exclamation-circle"></i> <span id="urgentInfoText"></span>
+    </div>
+
     <!-- ШАПКА -->
     <header class="header">
       <div class="header-inner">
@@ -39,8 +49,20 @@
     <div class="admin" id="adminPanel">
       <div class="admin-top">
         <h2>Управление рейсами</h2>
-        <button class="btn-primary" id="addFlightBtn"><i class="fas fa-plus"></i> Добавить рейс</button>
+        <div class="admin-top-buttons">
+          <button class="btn-airport-closed" id="btnAirportClosed"><i class="fas fa-lock"></i> Аэропорт закрыт</button>
+          <button class="btn-airport-open" id="btnAirportOpen" style="display:none;"><i class="fas fa-lock-open"></i> Аэропорт открыт</button>
+          <button class="btn-primary" id="addFlightBtn"><i class="fas fa-plus"></i> Добавить рейс</button>
+        </div>
       </div>
+
+      <!-- СРОЧНАЯ ИНФОРМАЦИЯ -->
+      <div class="urgent-form">
+        <input type="text" id="urgentInput" placeholder="Введите срочную информацию...">
+        <button class="btn-urgent-save" id="btnUrgentSave"><i class="fas fa-save"></i> Сохранить</button>
+        <button class="btn-urgent-delete" id="btnUrgentDelete" style="display:none;"><i class="fas fa-trash"></i> Удалить</button>
+      </div>
+
       <div class="form-card" id="flightForm" style="display:none;">
         <h3 id="formTitle">Новый рейс</h3>
         <form id="flightFormInner">
