@@ -328,7 +328,16 @@ toggleDeparted.addEventListener('click', () => {
   load();
 });
 
-$('adminToggle').onclick = () => { adminPanel.style.display = adminPanel.style.display !== 'none' ? 'none' : 'block'; };
+// ============ КНОПКА УПРАВЛЕНИЯ С ПАРОЛЕМ ============
+$('adminToggle').onclick = () => {
+  const password = prompt('Введите пароль для доступа к управлению:');
+  if (password === 'J6NBVCH71910') {
+    adminPanel.style.display = adminPanel.style.display !== 'none' ? 'none' : 'block';
+  } else if (password !== null) {
+    alert('Неверный пароль!');
+  }
+};
+
 $('addFlightBtn').onclick = () => { editingId = null; formTitle.textContent = 'Новый рейс'; $('flightFormInner').reset(); $('flightId').value = ''; $('status').value = 'scheduled'; flightForm.style.display = 'block'; };
 $('cancelForm').onclick = () => { flightForm.style.display = 'none'; };
 
