@@ -19,6 +19,9 @@ const modalBody = $('modalBody');
 const modalTitle = $('modalTitle');
 const toggleDeparted = $('toggleDeparted');
 
+// Админка всегда скрыта при загрузке
+adminPanel.style.display = 'none';
+
 const SAMARA_OFFSET = 4 * 60;
 function getSamaraNow() {
   const now = new Date();
@@ -332,7 +335,7 @@ toggleDeparted.addEventListener('click', () => {
 $('adminToggle').onclick = () => {
   const password = prompt('Введите пароль для доступа к управлению:');
   if (password === 'J6NBVCH71910') {
-    adminPanel.style.display = adminPanel.style.display !== 'none' ? 'none' : 'block';
+    adminPanel.style.display = adminPanel.style.display === 'none' ? 'block' : 'none';
   } else if (password !== null) {
     alert('Неверный пароль!');
   }
