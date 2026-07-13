@@ -16,17 +16,22 @@ pool.query(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEX
 
 const DAILY_FLIGHTS = [
   "AS-1210|Москва|SVO|ASO Airlines|00:00",
+  "AS-9482|Баку|GYD|ASO Airlines|00:05",
   "FV-6234|Санкт-Петербург|PSH|Россия|00:40",
   "UT-478|Сургут|SGC|Utair|01:30",
   "AS-9987|Дубай|DXB|ASO Airlines|02:30",
   "NS-250|Екатеринбург|PSH|Noris|03:35",
+  "PC-5723|Анталья|AYT|Pegasus Airlines|04:15",
   "SU-796|Анталья|AYT|Аэрофлот|05:45",
   "AS-620|Краснодар|KRR|ASO Airlines|06:45",
+  "6N-1308|Тюмень|TUM|Severavia|06:55",
+  "6N-572|Санкт-Петербург|LED|Severavia|07:00",
   "AS-144|Тобольск|RMZ|ASO Airlines|07:30",
   "AS-2959|Сочи|AER|ASO Airlines|08:05",
   "NS-383|Краснодар|KRR|Noris|08:45",
   "FV-6062|Москва|SVO|Россия|10:00",
   "AS-622|Краснодар|KRR|ASO Airlines|10:20",
+  "6N-712|Москва|VKO|Severavia|11:40",
   "SU-1211|Москва|SVO|Аэрофлот|12:10",
   "AS-478|Сургут|SGC|ASO Airlines|12:15",
   "AS-1084|Геленджик|GDZ|ASO Airlines|13:00",
@@ -47,6 +52,7 @@ const DAILY_FLIGHTS = [
   "5N-582|Санкт-Петербург|PSH|Smartavia|19:15",
   "AS-1130|Нижневартовск|NJC|ASO Airlines|20:00",
   "SU-1215|Москва|SVO|Аэрофлот|20:40",
+  "AS-9005|Батуми|BUS|ASO Airlines|20:45",
   "NS-318|Тюмень|TUM|Noris|21:35",
   "DP-572|Санкт-Петербург|LED|Победа|21:35",
   "FV-6078|Москва|SVO|Россия|21:50",
@@ -181,7 +187,6 @@ function getFlightDay(f) {
   return 'today';
 }
 
-// API
 app.get('/api/airport-status', async (req, res) => {
   try { const r = await pool.query(`SELECT value FROM settings WHERE key = 'airport_status'`); res.json({ status: r.rows[0]?.value || 'open' }); }
   catch(e) { res.json({ status: 'open' }); }
