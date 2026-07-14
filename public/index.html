@@ -20,6 +20,11 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- СПИННЕР ЗАГРУЗКИ -->
+  <div class="spinner-overlay" id="spinnerOverlay">
+    <div class="spinner"></div>
+  </div>
+
   <div class="app">
     <!-- ДИСКЛЕЙМЕР -->
     <div class="disclaimer">
@@ -29,6 +34,7 @@
     <!-- БАННЕР СОСТОЯНИЯ АЭРОПОРТА -->
     <div class="airport-banner" id="airportBanner">
       <i class="fas fa-check-circle"></i> <span id="airportBannerText">Аэропорт открыт</span>
+      <button class="theme-toggle" id="themeToggle" title="Переключить тему">🌙</button>
     </div>
 
     <!-- СРОЧНАЯ ИНФОРМАЦИЯ -->
