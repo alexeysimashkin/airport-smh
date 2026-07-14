@@ -22,9 +22,12 @@ const toggleDeparted = $('toggleDeparted');
 // Админка всегда скрыта
 adminPanel.style.display = 'none';
 
-// Спиннер
+// Спиннер — держим 1.5 секунды
 const spinnerOverlay = $('spinnerOverlay');
 let firstLoad = true;
+setTimeout(() => {
+  if (spinnerOverlay) spinnerOverlay.style.display = 'none';
+}, 1500);
 
 const SAMARA_OFFSET = 4 * 60;
 function getSamaraNow() {
@@ -84,13 +87,11 @@ function updateBanner(status) {
   if (status === 'closed') {
     banner.classList.add('closed');
     banner.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span id="airportBannerText">Аэропорт закрыт</span>';
-    banner.appendChild(themeToggle);
     $('btnAirportClosed').style.display = 'none';
     $('btnAirportOpen').style.display = 'flex';
   } else {
     banner.classList.remove('closed');
     banner.innerHTML = '<i class="fas fa-check-circle"></i> <span id="airportBannerText">Аэропорт открыт</span>';
-    banner.appendChild(themeToggle);
     $('btnAirportOpen').style.display = 'none';
     $('btnAirportClosed').style.display = 'flex';
   }
@@ -142,6 +143,33 @@ $('btnUrgentDelete').addEventListener('click', async () => {
   loadUrgent();
 });
 
+// ============ PUSH-УВЕДОМЛЕНИЯ ============
+async function subscribeToPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    const newSub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array('BEl62iGI0qFpMQ5cnXhXhFkCj_DhFLdLgXLusFQOmnBZ0LvFvyS2c4BHGQcJxQcZ7HxEWdVYpFqWXqKpFzFpFzA')
+    });
+    await fetch('/api/push-subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sub)
+    });
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+  return outputArray;
+}
+
 // ============ ЗАГРУЗКА РЕЙСОВ ============
 async function load() {
   try {
@@ -153,10 +181,6 @@ async function load() {
     lastUpdated.textContent = ts;
     lastUpdated2.textContent = ts;
   } catch(e) { console.log('Ошибка загрузки:', e); }
-  if (firstLoad) {
-    spinnerOverlay.style.display = 'none';
-    firstLoad = false;
-  }
 }
 
 function getTagClass(f) {
@@ -255,7 +279,7 @@ window.shareFlight = function(id) {
 🏷️ Стойки: ${f.checkInCounters || '—'}
 🚪 Выход: ${f.boardingGate || '—'}
 📌 Статус: ${(f.statusText || 'По расписанию').replace(/\n/g, ' ')}
-🔗 smh.vercel.app`;
+🔗 ar-smh.ru`;
   
   if (navigator.share) {
     navigator.share({ title: `Рейс ${f.flightNumber}`, text });
@@ -444,7 +468,9 @@ $('flightFormInner').onsubmit = async function(e) {
 
 // ============ SERVICE WORKER ============
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js');
+  navigator.serviceWorker.register('/sw.js').then(() => {
+    subscribeToPush();
+  });
 }
 
 setInterval(load, 30000);
