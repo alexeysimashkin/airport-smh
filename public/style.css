@@ -107,6 +107,19 @@ body.dark .urgent-info { background: #7F1D1D; color: #FCA5A5; border-color: #991
 body.dark .urgent-form input { background: #1E1B2E; border-color: #3D3A4E; color: #E2E8F0; }
 body.dark .btn-urgent-delete { background: #3D3A4E; color: #CBD5E1; }
 body.dark .btn-cancel { color: #CBD5E1; border-color: #3D3A4E; }
+/* ИСПРАВЛЕНИЕ: цвета в модалке для тёмной темы */
+body.dark .modal-flight-num { color: #A78BFA; }
+body.dark .modal-flight-airline { color: #CBD5E1; }
+body.dark .modal-fs-info-row { color: #94A3B8; }
+body.dark .modal-fs-table-row:not(.header) { color: #E2E8F0; }
+body.dark .modal-fs-timeline h3 { color: #94A3B8; }
+body.dark .timeline-time { color: #E2E8F0; }
+body.dark .timeline-label { color: #94A3B8; }
+body.dark .timeline-dot { background: #3D3A4E; border-color: #2D2A3E; }
+body.dark .timeline-item::before { background: #3D3A4E; }
+body.dark .extra-label { color: #94A3B8; }
+body.dark .extra-value { color: #E2E8F0; }
+body.dark .modal-fs-iata { background: #3D3A4E; color: #A78BFA; }
 
 /* DISCLAIMER */
 .disclaimer {
@@ -124,19 +137,9 @@ body.dark .btn-cancel { color: #CBD5E1; border-color: #3D3A4E; }
   border-radius: 12px; margin-bottom: 16px;
   font-weight: 700; font-size: 14px;
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: all 0.3s; position: relative;
+  transition: all 0.3s;
 }
 .airport-banner.closed { background: var(--red); }
-
-/* THEME TOGGLE */
-.theme-toggle {
-  position: absolute; right: 12px;
-  background: none; border: none;
-  font-size: 20px; cursor: pointer;
-  padding: 4px 8px; border-radius: 8px;
-  transition: background 0.2s;
-}
-.theme-toggle:hover { background: rgba(255,255,255,0.2); }
 
 /* URGENT INFO */
 .urgent-info {
@@ -185,6 +188,16 @@ body.dark .btn-cancel { color: #CBD5E1; border-color: #3D3A4E; }
   border-radius: 50%; animation: pulse 2s infinite;
 }
 @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(1.6)} }
+
+/* THEME TOGGLE — в шапке */
+.theme-toggle {
+  background: none; border: none;
+  font-size: 20px; cursor: pointer;
+  padding: 4px 8px; border-radius: 8px;
+  transition: background 0.2s;
+}
+.theme-toggle:hover { background: rgba(0,0,0,0.05); }
+body.dark .theme-toggle:hover { background: rgba(255,255,255,0.1); }
 
 .admin-btn {
   background: var(--gray-50); border: 1px solid var(--gray-200);
@@ -497,4 +510,4 @@ td { padding: 18px 22px; font-size: 14px; font-weight: 500; color: var(--gray-80
 }
 @media (max-width: 480px) {
   .form-grid { grid-template-columns: 1fr; }
-  }
+}
