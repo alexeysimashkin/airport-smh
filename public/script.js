@@ -19,8 +19,12 @@ const modalBody = $('modalBody');
 const modalTitle = $('modalTitle');
 const toggleDeparted = $('toggleDeparted');
 
-// Админка всегда скрыта при загрузке
+// Админка всегда скрыта
 adminPanel.style.display = 'none';
+
+// Спиннер
+const spinnerOverlay = $('spinnerOverlay');
+let firstLoad = true;
 
 const SAMARA_OFFSET = 4 * 60;
 function getSamaraNow() {
@@ -53,6 +57,19 @@ function fmtDateOnly(s) {
   return `${d.getDate()} ${months[d.getMonth()]}`;
 }
 
+// ============ ТЁМНАЯ ТЕМА ============
+const themeToggle = $('themeToggle');
+const savedTheme = localStorage.getItem('theme') || 'light';
+if (savedTheme === 'dark') {
+  document.body.classList.add('dark');
+  themeToggle.textContent = '☀️';
+}
+themeToggle.addEventListener('click', () => {
+  const isDark = document.body.classList.toggle('dark');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  themeToggle.textContent = isDark ? '☀️' : '🌙';
+});
+
 // ============ АЭРОПОРТ ОТКРЫТ/ЗАКРЫТ ============
 async function loadAirportStatus() {
   try {
@@ -67,11 +84,13 @@ function updateBanner(status) {
   if (status === 'closed') {
     banner.classList.add('closed');
     banner.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span id="airportBannerText">Аэропорт закрыт</span>';
+    banner.appendChild(themeToggle);
     $('btnAirportClosed').style.display = 'none';
     $('btnAirportOpen').style.display = 'flex';
   } else {
     banner.classList.remove('closed');
     banner.innerHTML = '<i class="fas fa-check-circle"></i> <span id="airportBannerText">Аэропорт открыт</span>';
+    banner.appendChild(themeToggle);
     $('btnAirportOpen').style.display = 'none';
     $('btnAirportClosed').style.display = 'flex';
   }
@@ -134,6 +153,10 @@ async function load() {
     lastUpdated.textContent = ts;
     lastUpdated2.textContent = ts;
   } catch(e) { console.log('Ошибка загрузки:', e); }
+  if (firstLoad) {
+    spinnerOverlay.style.display = 'none';
+    firstLoad = false;
+  }
 }
 
 function getTagClass(f) {
@@ -166,9 +189,7 @@ function renderFlightRow(f) {
   }
   
   let statusHtml = `<span class="status-tag ${getTagClass(f)}">${(f.statusText || 'По расписанию').replace(/\n/g,'<br>')}</span>`;
-  if (feeding) {
-    statusHtml += `<span class="status-feeding-sub">Предоставление питания</span>`;
-  }
+  if (feeding) statusHtml += `<span class="status-feeding-sub">Предоставление питания</span>`;
   
   return `<tr onclick="showDetail('${f.id}')" style="${departed ? 'opacity:0.6;' : ''}">
     <td class="time-cell">${timeHtml}</td>
@@ -222,6 +243,28 @@ function renderAll() {
     : tomorrowFlights.map(renderFlightRow).join('');
 }
 
+// ============ ПОДЕЛИТЬСЯ РЕЙСОМ ============
+window.shareFlight = function(id) {
+  const f = currentFlights.find(x => x.id === id);
+  if (!f) return;
+  
+  const text = `🛫 Рейс ${f.flightNumber}
+📍 ${f.destination} (${f.iataCode || ''})
+🕐 По расписанию: ${fmtTm(f.scheduledDeparture)}
+🕐 Ожидаемый: ${fmtTm(f.expectedDeparture || f.scheduledDeparture)}
+🏷️ Стойки: ${f.checkInCounters || '—'}
+🚪 Выход: ${f.boardingGate || '—'}
+📌 Статус: ${(f.statusText || 'По расписанию').replace(/\n/g, ' ')}
+🔗 smh.vercel.app`;
+  
+  if (navigator.share) {
+    navigator.share({ title: `Рейс ${f.flightNumber}`, text });
+  } else {
+    navigator.clipboard.writeText(text).then(() => alert('Информация скопирована!'));
+  }
+};
+
+// ============ ДЕТАЛИ РЕЙСА ============
 window.showDetail = function(id) {
   const f = currentFlights.find(x => x.id === id);
   if (!f) return;
@@ -304,7 +347,10 @@ window.showDetail = function(id) {
       <div class="modal-fs-extra-item"><span class="extra-label">Регистрация</span><span class="extra-value">${fmtTm(f.checkInStart)} — ${fmtTm(f.checkInEnd)}</span></div>
       <div class="modal-fs-extra-item"><span class="extra-label">Посадка</span><span class="extra-value">${fmtTm(f.boardingStart)} — ${fmtTm(f.boardingEnd)}</span></div>
       <div class="modal-fs-extra-item"><span class="extra-label">Стойки</span><span class="extra-value">${f.checkInCounters || '—'}</span></div>
-    </div>`;
+    </div>
+    <button class="btn-share" onclick="event.stopPropagation(); shareFlight('${f.id}')">
+      <i class="fas fa-share-alt"></i> Поделиться рейсом
+    </button>`;
 
   modalOverlay.classList.add('show');
   document.body.style.overflow = 'hidden';
@@ -395,6 +441,11 @@ $('flightFormInner').onsubmit = async function(e) {
   editingId = null;
   load();
 };
+
+// ============ SERVICE WORKER ============
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js');
+}
 
 setInterval(load, 30000);
 loadAirportStatus();
