@@ -4,6 +4,18 @@ const path = require('path');
 const { Pool } = require('@neondatabase/serverless');
 
 const app = express();
+
+// ============ РЕЖИМ ОБСЛУЖИВАНИЯ ============
+// Поставь true чтобы включить заглушку, false чтобы выключить
+const MAINTENANCE_MODE = false;
+
+app.use((req, res, next) => {
+  if (MAINTENANCE_MODE && !req.path.startsWith('/api/')) {
+    return res.sendFile(path.join(__dirname, 'public', 'maintenance.html'));
+  }
+  next();
+});
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -262,7 +274,9 @@ app.delete('/api/flights/:id', async (req, res) => {
   res.status(204).send();
 });
 
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('Симашкино OK'));
