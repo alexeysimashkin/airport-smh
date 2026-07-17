@@ -7,7 +7,7 @@ const app = express();
 
 // ============ РЕЖИМ ОБСЛУЖИВАНИЯ ============
 // Поставь true чтобы включить заглушку, false чтобы выключить
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 app.use((req, res, next) => {
   if (MAINTENANCE_MODE && !req.path.startsWith('/api/')) {
