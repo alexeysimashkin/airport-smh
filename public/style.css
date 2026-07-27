@@ -107,7 +107,6 @@ body.dark .urgent-info { background: #7F1D1D; color: #FCA5A5; border-color: #991
 body.dark .urgent-form input { background: #1E1B2E; border-color: #3D3A4E; color: #E2E8F0; }
 body.dark .btn-urgent-delete { background: #3D3A4E; color: #CBD5E1; }
 body.dark .btn-cancel { color: #CBD5E1; border-color: #3D3A4E; }
-/* ИСПРАВЛЕНИЕ: цвета в модалке для тёмной темы */
 body.dark .modal-flight-num { color: #A78BFA; }
 body.dark .modal-flight-airline { color: #CBD5E1; }
 body.dark .modal-fs-info-row { color: #94A3B8; }
@@ -189,7 +188,7 @@ body.dark .modal-fs-iata { background: #3D3A4E; color: #A78BFA; }
 }
 @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(1.6)} }
 
-/* THEME TOGGLE — в шапке */
+/* THEME TOGGLE */
 .theme-toggle {
   background: none; border: none;
   font-size: 20px; cursor: pointer;
@@ -243,6 +242,15 @@ body.dark .theme-toggle:hover { background: rgba(255,255,255,0.1); }
   box-shadow: 0 2px 10px rgba(124,58,237,0.25);
 }
 .btn-primary:hover { background: var(--purple-dark); transform: translateY(-1px); }
+
+/* DELETE OLD FLIGHTS BUTTON */
+.btn-delete-old {
+  background: #F59E0B; color: #000; border: none;
+  padding: 10px 18px; border-radius: 25px; font-weight: 600;
+  font-size: 13px; cursor: pointer; display: flex; align-items: center;
+  gap: 6px; transition: all 0.2s; font-family: 'Inter', sans-serif;
+}
+.btn-delete-old:hover { background: #D97706; }
 
 .urgent-form { display: flex; gap: 8px; margin-bottom: 16px; }
 .urgent-form input {
