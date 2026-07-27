@@ -34,7 +34,6 @@
     <!-- БАННЕР СОСТОЯНИЯ АЭРОПОРТА -->
     <div class="airport-banner" id="airportBanner">
       <i class="fas fa-check-circle"></i> <span id="airportBannerText">Аэропорт открыт</span>
-      <button class="theme-toggle" id="themeToggle" title="Переключить тему">🌙</button>
     </div>
 
     <!-- СРОЧНАЯ ИНФОРМАЦИЯ -->
@@ -52,8 +51,11 @@
             <span class="header-sub">Международный аэропорт Самары</span>
           </div>
         </div>
-        <div class="header-center"><div class="iata-badge">SMH</div></div>
+        <div class="header-center">
+          <div class="iata-badge">SMH</div>
+        </div>
         <div class="header-right">
+          <button class="theme-toggle" id="themeToggle" title="Переключить тему">🌙</button>
           <div class="live-clock"><span id="clockTime">00:00</span><span class="live-dot"></span></div>
           <button class="admin-btn" id="adminToggle"><i class="fas fa-cog"></i><span>Управление</span></button>
         </div>
@@ -67,6 +69,7 @@
         <div class="admin-top-buttons">
           <button class="btn-airport-closed" id="btnAirportClosed"><i class="fas fa-lock"></i> Аэропорт закрыт</button>
           <button class="btn-airport-open" id="btnAirportOpen" style="display:none;"><i class="fas fa-lock-open"></i> Аэропорт открыт</button>
+          <button class="btn-delete-old" id="btnDeleteOldFlights"><i class="fas fa-broom"></i> Удалить прошлые рейсы</button>
           <button class="btn-primary" id="addFlightBtn"><i class="fas fa-plus"></i> Добавить рейс</button>
         </div>
       </div>
