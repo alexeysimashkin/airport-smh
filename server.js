@@ -6,7 +6,6 @@ const { Pool } = require('@neondatabase/serverless');
 const app = express();
 
 // ============ РЕЖИМ ОБСЛУЖИВАНИЯ ============
-// Поставь true чтобы включить заглушку, false чтобы выключить
 const MAINTENANCE_MODE = false;
 
 app.use((req, res, next) => {
@@ -222,6 +221,22 @@ app.post('/api/urgent', async (req, res) => {
 app.delete('/api/urgent', async (req, res) => {
   await pool.query(`DELETE FROM settings WHERE key = 'urgent_info'`);
   res.json({ text: '' });
+});
+
+// Удаление прошлых рейсов
+app.delete('/api/old-flights', async (req, res) => {
+  const today = getTodayStr();
+  const flights = await loadFlights('departures');
+  const kept = flights.filter(f => {
+    if (f.scheduledDeparture && f.scheduledDeparture.slice(0, 10) >= today) return true;
+    if (f.status !== 'departed' && f.status !== 'early_departed') return true;
+    return false;
+  });
+  const toDelete = flights.filter(f => !kept.includes(f));
+  for (const f of toDelete) {
+    await deleteOne(f.id, 'departures');
+  }
+  res.json({ deleted: toDelete.length, kept: kept.length });
 });
 
 app.get('/api/flights', async (req, res) => {
