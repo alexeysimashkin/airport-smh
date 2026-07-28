@@ -5,7 +5,6 @@ const { Pool } = require('@neondatabase/serverless');
 
 const app = express();
 
-// ============ РЕЖИМ ОБСЛУЖИВАНИЯ ============
 const MAINTENANCE_MODE = false;
 
 app.use((req, res, next) => {
@@ -223,15 +222,21 @@ app.delete('/api/urgent', async (req, res) => {
   res.json({ text: '' });
 });
 
-// Удаление прошлых рейсов
+// Удаление прошлых рейсов БЕЗ статуса "Вылетел" (departed/early_departed)
 app.delete('/api/old-flights', async (req, res) => {
   const today = getTodayStr();
   const flights = await loadFlights('departures');
+  
+  // Оставляем: сегодняшние + вылетевшие (с любым статусом departed) + завтрашние
   const kept = flights.filter(f => {
+    // Если дата вылета — сегодня или позже
     if (f.scheduledDeparture && f.scheduledDeparture.slice(0, 10) >= today) return true;
-    if (f.status !== 'departed' && f.status !== 'early_departed') return true;
+    // Если рейс уже вылетел (departed/early_departed) — оставляем
+    if (f.status === 'departed' || f.status === 'early_departed') return true;
+    // Всё остальное — старые рейсы без статуса "вылетел" — удаляем
     return false;
   });
+  
   const toDelete = flights.filter(f => !kept.includes(f));
   for (const f of toDelete) {
     await deleteOne(f.id, 'departures');
