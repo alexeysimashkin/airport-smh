@@ -5,7 +5,7 @@ const { Pool } = require('@neondatabase/serverless');
 
 const app = express();
 
-const MAINTENANCE_MODE = false;
+const MAINTENANCE_MODE = true;
 
 app.use((req, res, next) => {
   if (MAINTENANCE_MODE && !req.path.startsWith('/api/')) {
