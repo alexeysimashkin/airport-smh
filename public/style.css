@@ -188,6 +188,16 @@ body.dark .modal-fs-iata { background: #3D3A4E; color: #A78BFA; }
 }
 @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(1.6)} }
 
+/* AUDIO TOGGLE */
+.audio-toggle {
+  background: none; border: none;
+  font-size: 20px; cursor: pointer;
+  padding: 4px 8px; border-radius: 8px;
+  transition: background 0.2s;
+}
+.audio-toggle:hover { background: rgba(0,0,0,0.05); }
+body.dark .audio-toggle:hover { background: rgba(255,255,255,0.1); }
+
 /* THEME TOGGLE */
 .theme-toggle {
   background: none; border: none;
