@@ -24,6 +24,84 @@ pool.query(`CREATE TABLE IF NOT EXISTS departures (id TEXT PRIMARY KEY, data JSO
 pool.query(`CREATE TABLE IF NOT EXISTS arrivals (id TEXT PRIMARY KEY, data JSONB NOT NULL)`).catch(e => console.log(e));
 pool.query(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`).catch(e => console.log(e));
 
+const DAILY_FLIGHTS = [
+  "AS-1210|Москва|SVO|ASO Airlines|00:30",
+  "AS-9482|Баку|GYD|ASO Airlines|00:45",
+  "UT-478|Сургут|SGC|Utair|01:30",
+  "AS-9987|Дубай|DXB|ASO Airlines|02:30",
+  "WZ-1303|Новый Уренгой|NUX|Red Wings|03:15",
+  "NS-250|Екатеринбург|SVX|Noris|03:35",
+  "PC-5723|Анталья|AYT|Pegasus Airlines|04:15",
+  "AS-620|Краснодар|KRR|ASO Airlines|06:45",
+  "6N-572|Санкт-Петербург|LED|Severavia|07:00",
+  "AS-2959|Сочи|AER|ASO Airlines|08:05",
+  "AS-9830|Пекин|PEK|ASO Airlines|08:20",
+  "NS-383|Краснодар|KRR|Noris|08:45",
+  "AS-622|Краснодар|KRR|ASO Airlines|10:20",
+  "DP-610|Санкт-Петербург|LED|Победа|11:00",
+  "AS-478|Сургут|SGC|ASO Airlines|12:15",
+  "SM-5305|Тюмень|TJM|SamAero|12:50",
+  "AS-1084|Геленджик|GDZ|ASO Airlines|13:00",
+  "AS-1212|Москва|SVO|ASO Airlines|13:10",
+  "5N-532|Санкт-Петербург|LED|Smartavia|13:15",
+  "UT-282|Екатеринбург|PSH|Utair|13:55",
+  "AS-144|Тобольск|RMZ|ASO Airlines|14:00",
+  "S7-5032|Новосибирск|OVB|S7 Airlines|15:10",
+  "AS-130|Нижневартовск|NJC|ASO Airlines|15:15",
+  "AS-2957|Сочи|AER|ASO Airlines|16:00",
+  "AS-1478|Сургут|SGC|ASO Airlines|16:45",
+  "AS-1214|Москва|SVO|ASO Airlines|17:00",
+  "NS-152|Уфа|BHK|Noris|17:15",
+  "AS-856|Калининград|KGD|ASO Airlines|17:30",
+  "WZ-1365|Стамбул|IST|Red Wings|17:35",
+  "S7-1074|Москва|DME|S7 Airlines|18:00",
+  "6N-332|Сочи|AER|Severavia|18:05",
+  "AS-1210|Москва|SVO|ASO Airlines|18:30",
+  "5N-582|Санкт-Петербург|LED|Smartavia|19:15",
+  "AS-1130|Нижневартовск|NJC|ASO Airlines|20:00",
+  "SU-1215|Москва|SVO|Аэрофлот|20:40",
+  "AS-1216|Москва|SVO|ASO Airlines|21:00",
+  "DP-572|Санкт-Петербург|LED|Победа|21:35",
+  "NS-318|Тюмень|TUM|Noris|21:35",
+  "SU-1607|Москва|SVO|Аэрофлот|21:50",
+  "UT-358|Москва|VKO|Utair|23:10",
+  "AS-3841|Новосибирск|OVB|ASO Airlines|23:15",
+  "SM-451|Тюмень|TUM|SamAero|23:15",
+  "S7-5034|Новосибирск|OVB|S7 Airlines|23:30"
+];
+
+function parseFlight(str) {
+  const [flightNumber, destination, iataCode, airline, time] = str.split('|');
+  return { flightNumber, destination, iataCode, airline, time };
+}
+
+function getTodayStr() {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const samara = new Date(utc + 4 * 3600000);
+  return samara.toISOString().slice(0, 10);
+}
+
+function getTomorrowStr() {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const samara = new Date(utc + 4 * 3600000);
+  samara.setDate(samara.getDate() + 1);
+  return samara.toISOString().slice(0, 10);
+}
+
+function makeFlight(f, dateStr) {
+  const id = f.flightNumber + '-' + dateStr;
+  return {
+    id, flightNumber: f.flightNumber, destination: f.destination,
+    iataCode: f.iataCode, airline: f.airline, scheduledTime: f.time,
+    scheduledDeparture: dateStr + 'T' + f.time + ':00',
+    expectedDeparture: null, checkInStart: null, checkInEnd: null,
+    checkInCounters: '', boardingStart: null, boardingEnd: null,
+    boardingGate: '', status: 'scheduled'
+  };
+}
+
 async function loadFlights(table) {
   try { const r = await pool.query(`SELECT data FROM ${table}`); return r.rows.map(x => x.data); }
   catch(e) { return []; }
@@ -35,6 +113,22 @@ async function saveOne(f, table) {
 
 async function deleteOne(id, table) {
   await pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
+}
+
+async function ensureDailyFlights() {
+  const flights = await loadFlights('departures');
+  const today = getTodayStr();
+  const tomorrow = getTomorrowStr();
+  const existingIds = new Set(flights.map(f => f.id));
+  const toAdd = [];
+  for (const str of DAILY_FLIGHTS) {
+    const f = parseFlight(str);
+    const idToday = f.flightNumber + '-' + today;
+    if (!existingIds.has(idToday)) toAdd.push(makeFlight(f, today));
+    const idTomorrow = f.flightNumber + '-' + tomorrow;
+    if (!existingIds.has(idTomorrow)) toAdd.push(makeFlight(f, tomorrow));
+  }
+  if (toAdd.length > 0) for (const f of toAdd) await saveOne(f, 'departures');
 }
 
 function getLocalNow() {
@@ -126,7 +220,7 @@ app.delete('/api/urgent', async (req, res) => {
 });
 
 app.delete('/api/old-flights', async (req, res) => {
-  const today = getLocalNow().toISOString().slice(0, 10);
+  const today = getTodayStr();
   const flights = await loadFlights('departures');
   const kept = flights.filter(f => {
     if (f.scheduledDeparture && f.scheduledDeparture.slice(0, 10) >= today) return true;
@@ -141,6 +235,7 @@ app.delete('/api/old-flights', async (req, res) => {
 });
 
 app.get('/api/flights', async (req, res) => {
+  await ensureDailyFlights();
   const type = req.query.type || 'departure';
   const table = type === 'departure' ? 'departures' : 'arrivals';
   let flights = await loadFlights(table);
