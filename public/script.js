@@ -2,6 +2,7 @@ let currentFlights = [];
 let editingId = null;
 let currentTab = 'today';
 let showDeparted = false;
+let audioEnabled = localStorage.getItem('audioEnabled') !== 'false'; // по умолчанию вкл
 const API = '/api/flights';
 
 const $ = id => document.getElementById(id);
@@ -69,6 +70,125 @@ if (themeToggle) {
     const isDark = document.body.classList.toggle('dark');
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
     themeToggle.textContent = isDark ? '☀️' : '🌙';
+  });
+}
+
+// ============ АУДИО ============
+const audioToggle = $('audioToggle');
+if (audioToggle) {
+  audioToggle.textContent = audioEnabled ? '🔊' : '🔇';
+  audioToggle.addEventListener('click', () => {
+    audioEnabled = !audioEnabled;
+    localStorage.setItem('audioEnabled', audioEnabled);
+    audioToggle.textContent = audioEnabled ? '🔊' : '🔇';
+  });
+}
+
+let lastAnnounced = {};
+
+function speak(text) {
+  if (!audioEnabled) return;
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ru-RU';
+    u.rate = 0.9;
+    u.pitch = 1;
+    window.speechSynthesis.speak(u);
+  }
+}
+
+function announceStatusChange(f, statusType) {
+  const now = getSamaraNow();
+  const timeKey = f.id + '-' + statusType;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  
+  // Не повторять чаще чем раз в 2 минуты
+  if (lastAnnounced[timeKey] && nowMinutes - lastAnnounced[timeKey] < 2) return;
+  lastAnnounced[timeKey] = nowMinutes;
+
+  const airline = f.airline || '';
+  const flight = f.flightNumber || '';
+  const city = f.destination || '';
+  const counters = f.checkInCounters || '';
+  const gate = f.boardingGate || '';
+  const delayTime = f.expectedDeparture ? fmtTm(f.expectedDeparture) : '';
+
+  let textRu = '';
+  let textEn = '';
+
+  switch (statusType) {
+    case 'checkin':
+      textRu = `Уважаемые пассажиры! Начинается регистрация билетов и оформление багажа на рейс авиакомпании ${airline}, ${flight}, вылетающих в ${city}. Приглашаем вас пройти к стойкам номер ${counters}.`;
+      textEn = `Attention please! Check-in for ${airline} flight ${flight} to ${city} is open now at check-in counter number ${counters}.`;
+      break;
+    case 'checkin_completed':
+      textRu = `Уважаемые пассажиры! Закончилась регистрация билетов и оформление багажа на рейс авиакомпании ${airline}, ${flight}, вылетающих в ${city}.`;
+      textEn = `Attention please! Check-in for ${airline} flight ${flight} to ${city} is finished.`;
+      break;
+    case 'boarding':
+      textRu = `Уважаемые пассажиры! Начинается посадка на рейс авиакомпании ${airline}, ${flight}, вылетающих в ${city}. Приглашаем вас пройти к выходу на посадку номер ${gate}.`;
+      textEn = `Attention please! Boarding for ${airline} flight ${flight} to ${city} is open now at gate number ${gate}.`;
+      break;
+    case 'boarding_completed':
+      textRu = `Уважаемые пассажиры! Закончилась посадка на рейс авиакомпании ${airline}, ${flight}, вылетающих в ${city}.`;
+      textEn = `Attention please! Boarding for ${airline} flight ${flight} to ${city} is finished.`;
+      break;
+    case 'delayed':
+      textRu = `Внимание! К сведению пассажиров, вылетающих рейсом авиакомпании ${airline} ${flight} в ${city}, вылет вашего рейса задерживается до ${delayTime}. От имени авиакомпании мы приносим свои извинения за доставленные неудобства!`;
+      textEn = `Attention please! Information for ${airline} flight ${flight} to ${city} has been delayed till ${delayTime}. On behalf of the airline, we apologise for the inconvenience.`;
+      break;
+    case 'cancelled':
+      textRu = `Внимание! К сведению пассажиров, вылетающих рейсом авиакомпании ${airline} ${flight} в ${city}, ваш рейс отменён. Просим вас обращаться в представительство авиакомпании за получением более подробной информации.`;
+      textEn = `Attention please! ${airline} flight ${flight} to ${city} has been cancelled! Please go to the ${airline} office for more information.`;
+      break;
+    case 'departed':
+      textRu = `Уважаемые пассажиры! Рейс авиакомпании ${airline} ${flight} в ${city} вылетел.`;
+      textEn = `${airline} flight ${flight} to ${city} has departed.`;
+      break;
+    case 'feeding':
+      textRu = `Уважаемые пассажиры! Для пассажиров рейса авиакомпании ${airline} ${flight} в ${city} предоставляется питание.`;
+      textEn = `Attention please! Meal service is provided for ${airline} flight ${flight} to ${city}.`;
+      break;
+  }
+
+  if (textRu) speak(textRu);
+  setTimeout(() => { if (textEn) speak(textEn); }, 5000);
+}
+
+// Проверка расписания для озвучки
+function checkScheduleForAudio() {
+  if (!audioEnabled) return;
+  const now = getSamaraNow();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  currentFlights.forEach(f => {
+    if (f.status === 'departed' || f.status === 'early_departed' || f.status === 'cancelled') return;
+
+    // Регистрация началась
+    if (f.checkInStart) {
+      const t = new Date(f.checkInStart);
+      const tm = t.getHours() * 60 + t.getMinutes();
+      if (nowMinutes === tm) announceStatusChange(f, 'checkin');
+    }
+    // Регистрация закончена
+    if (f.checkInEnd) {
+      const t = new Date(f.checkInEnd);
+      const tm = t.getHours() * 60 + t.getMinutes();
+      if (nowMinutes === tm) announceStatusChange(f, 'checkin_completed');
+    }
+    // Посадка началась
+    if (f.boardingStart) {
+      const t = new Date(f.boardingStart);
+      const tm = t.getHours() * 60 + t.getMinutes();
+      if (nowMinutes === tm) announceStatusChange(f, 'boarding');
+    }
+    // Посадка закончена
+    if (f.boardingEnd) {
+      const t = new Date(f.boardingEnd);
+      const tm = t.getHours() * 60 + t.getMinutes();
+      if (nowMinutes === tm) announceStatusChange(f, 'boarding_completed');
+    }
   });
 }
 
@@ -178,12 +298,36 @@ function urlBase64ToUint8Array(base64String) {
 async function load() {
   try {
     const r = await fetch(`${API}?showDeparted=${showDeparted}`);
+    const oldFlights = currentFlights;
     currentFlights = await r.json();
     renderAll();
     const now = getSamaraNow();
     const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
     if (lastUpdated) lastUpdated.textContent = ts;
     if (lastUpdated2) lastUpdated2.textContent = ts;
+    
+    // Проверяем изменения статусов для озвучки
+    if (oldFlights.length > 0) {
+      currentFlights.forEach(f => {
+        const old = oldFlights.find(o => o.id === f.id);
+        if (old) {
+          // Изменился статус
+          if (f.status !== old.status && f.status !== 'scheduled') {
+            announceStatusChange(f, f.status);
+          }
+          // Изменился выход
+          if (f.boardingGate && f.boardingGate !== old.boardingGate) {
+            const textRu = `Внимание! К сведению пассажиров, вылетающих рейсом авиакомпании ${f.airline} ${f.flightNumber}, вылетающих в ${f.destination}, ваш выход на посадку был изменён. Новый номер выхода на посадку ${f.boardingGate}.`;
+            const textEn = `Attention please! Information for ${f.airline} flight ${f.flightNumber} to ${f.destination}, your boarding gate has been changed to gate number ${f.boardingGate}.`;
+            speak(textRu);
+            setTimeout(() => speak(textEn), 5000);
+          }
+        }
+      });
+    }
+    
+    // Проверка расписания
+    checkScheduleForAudio();
   } catch(e) { console.log('Ошибка загрузки:', e); }
 }
 
@@ -506,7 +650,12 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-setInterval(load, 30000);
+// Проверка расписания каждые 30 секунд
+setInterval(() => {
+  load();
+  checkScheduleForAudio();
+}, 30000);
+
 loadAirportStatus();
 loadUrgent();
 load();
