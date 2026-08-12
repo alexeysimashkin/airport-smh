@@ -2,7 +2,7 @@ let currentFlights = [];
 let editingId = null;
 let currentTab = 'today';
 let showDeparted = false;
-let audioEnabled = localStorage.getItem('audioEnabled') !== 'false'; // по умолчанию вкл
+let audioEnabled = localStorage.getItem('audioEnabled') !== 'false';
 const API = '/api/flights';
 
 const $ = id => document.getElementById(id);
@@ -84,33 +84,56 @@ if (audioToggle) {
   });
 }
 
-let lastAnnounced = {};
+let isSpeaking = false;
+let speechQueue = [];
 
-function speak(text) {
+function speak(text, lang = 'ru-RU') {
   if (!audioEnabled) return;
   if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ru-RU';
-    u.rate = 0.9;
-    u.pitch = 1;
-    window.speechSynthesis.speak(u);
+    speechQueue.push({ text, lang });
+    processQueue();
   }
 }
+
+function processQueue() {
+  if (isSpeaking || speechQueue.length === 0) return;
+  isSpeaking = true;
+  const { text, lang } = speechQueue.shift();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang;
+  u.rate = lang === 'en-US' ? 0.85 : 0.9;
+  u.pitch = 1;
+  u.onend = () => {
+    isSpeaking = false;
+    setTimeout(() => processQueue(), 300);
+  };
+  u.onerror = () => {
+    isSpeaking = false;
+    setTimeout(() => processQueue(), 300);
+  };
+  window.speechSynthesis.speak(u);
+}
+
+// Форматирование чисел для озвучки (30,31 -> "30, 31")
+function formatCountersForSpeech(counters) {
+  if (!counters) return '';
+  return counters.replace(/\./g, ' ').replace(/,/g, ' ').replace(/\s+/g, ' ');
+}
+
+let lastAnnounced = {};
 
 function announceStatusChange(f, statusType) {
   const now = getSamaraNow();
   const timeKey = f.id + '-' + statusType;
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   
-  // Не повторять чаще чем раз в 2 минуты
   if (lastAnnounced[timeKey] && nowMinutes - lastAnnounced[timeKey] < 2) return;
   lastAnnounced[timeKey] = nowMinutes;
 
   const airline = f.airline || '';
   const flight = f.flightNumber || '';
   const city = f.destination || '';
-  const counters = f.checkInCounters || '';
+  const counters = formatCountersForSpeech(f.checkInCounters || '');
   const gate = f.boardingGate || '';
   const delayTime = f.expectedDeparture ? fmtTm(f.expectedDeparture) : '';
 
@@ -152,8 +175,8 @@ function announceStatusChange(f, statusType) {
       break;
   }
 
-  if (textRu) speak(textRu);
-  setTimeout(() => { if (textEn) speak(textEn); }, 5000);
+  if (textRu) speak(textRu, 'ru-RU');
+  if (textEn) speak(textEn, 'en-US');
 }
 
 // Проверка расписания для озвучки
@@ -165,25 +188,21 @@ function checkScheduleForAudio() {
   currentFlights.forEach(f => {
     if (f.status === 'departed' || f.status === 'early_departed' || f.status === 'cancelled') return;
 
-    // Регистрация началась
     if (f.checkInStart) {
       const t = new Date(f.checkInStart);
       const tm = t.getHours() * 60 + t.getMinutes();
       if (nowMinutes === tm) announceStatusChange(f, 'checkin');
     }
-    // Регистрация закончена
     if (f.checkInEnd) {
       const t = new Date(f.checkInEnd);
       const tm = t.getHours() * 60 + t.getMinutes();
       if (nowMinutes === tm) announceStatusChange(f, 'checkin_completed');
     }
-    // Посадка началась
     if (f.boardingStart) {
       const t = new Date(f.boardingStart);
       const tm = t.getHours() * 60 + t.getMinutes();
       if (nowMinutes === tm) announceStatusChange(f, 'boarding');
     }
-    // Посадка закончена
     if (f.boardingEnd) {
       const t = new Date(f.boardingEnd);
       const tm = t.getHours() * 60 + t.getMinutes();
@@ -306,7 +325,7 @@ async function load() {
     if (lastUpdated) lastUpdated.textContent = ts;
     if (lastUpdated2) lastUpdated2.textContent = ts;
     
-    // Проверяем изменения статусов для озвучки
+    // Проверяем изменения для озвучки
     if (oldFlights.length > 0) {
       currentFlights.forEach(f => {
         const old = oldFlights.find(o => o.id === f.id);
@@ -315,18 +334,26 @@ async function load() {
           if (f.status !== old.status && f.status !== 'scheduled') {
             announceStatusChange(f, f.status);
           }
+          // Изменилось ожидаемое время (задержка)
+          if (f.expectedDeparture && f.expectedDeparture !== old.expectedDeparture) {
+            const oldExp = old.expectedDeparture ? new Date(old.expectedDeparture) : null;
+            const newExp = new Date(f.expectedDeparture);
+            const sched = new Date(f.scheduledDeparture);
+            if (newExp > sched) {
+              announceStatusChange(f, 'delayed');
+            }
+          }
           // Изменился выход
           if (f.boardingGate && f.boardingGate !== old.boardingGate) {
             const textRu = `Внимание! К сведению пассажиров, вылетающих рейсом авиакомпании ${f.airline} ${f.flightNumber}, вылетающих в ${f.destination}, ваш выход на посадку был изменён. Новый номер выхода на посадку ${f.boardingGate}.`;
             const textEn = `Attention please! Information for ${f.airline} flight ${f.flightNumber} to ${f.destination}, your boarding gate has been changed to gate number ${f.boardingGate}.`;
-            speak(textRu);
-            setTimeout(() => speak(textEn), 5000);
+            speak(textRu, 'ru-RU');
+            speak(textEn, 'en-US');
           }
         }
       });
     }
     
-    // Проверка расписания
     checkScheduleForAudio();
   } catch(e) { console.log('Ошибка загрузки:', e); }
 }
@@ -650,7 +677,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Проверка расписания каждые 30 секунд
 setInterval(() => {
   load();
   checkScheduleForAudio();
