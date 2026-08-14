@@ -46,7 +46,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 25px 35px;
+      padding: 14px 20px;
       border-bottom: 2px solid #3D3D3D;
       flex-shrink: 0;
     }
@@ -54,16 +54,16 @@
     .board-header-left {
       display: flex;
       align-items: center;
-      gap: 18px;
+      gap: 12px;
     }
 
     .plane-icon {
-      font-size: 36px;
+      font-size: 24px;
       color: var(--yellow);
     }
 
     .board-title {
-      font-size: 30px;
+      font-size: 20px;
       font-weight: 800;
       color: var(--white);
       letter-spacing: 1px;
@@ -71,9 +71,9 @@
     }
 
     .board-subtitle {
-      font-size: 13px;
+      font-size: 9px;
       color: var(--gray-text);
-      letter-spacing: 3px;
+      letter-spacing: 2px;
       text-transform: uppercase;
     }
 
@@ -82,15 +82,15 @@
     }
 
     .board-time {
-      font-size: 42px;
+      font-size: 28px;
       font-weight: 700;
       color: var(--yellow);
-      letter-spacing: 2px;
+      letter-spacing: 1px;
       font-variant-numeric: tabular-nums;
     }
 
     .board-date {
-      font-size: 13px;
+      font-size: 9px;
       color: var(--gray-text);
       letter-spacing: 1px;
     }
@@ -107,11 +107,11 @@
     }
 
     .flights-table thead th {
-      padding: 18px 30px;
+      padding: 8px 15px;
       text-align: left;
-      font-size: 11px;
+      font-size: 8px;
       font-weight: 700;
-      letter-spacing: 2px;
+      letter-spacing: 1.5px;
       text-transform: uppercase;
       color: var(--gray-text);
       border-bottom: 1px solid #3D3D3D;
@@ -131,8 +131,8 @@
     }
 
     .flights-table td {
-      padding: 20px 30px;
-      font-size: 20px;
+      padding: 9px 15px;
+      font-size: 14px;
       font-weight: 500;
       color: var(--white);
       white-space: nowrap;
@@ -142,28 +142,28 @@
     .flight-time {
       color: var(--yellow);
       font-weight: 700;
-      font-size: 22px;
+      font-size: 15px;
       font-variant-numeric: tabular-nums;
     }
 
     .time-old {
       text-decoration: line-through;
       color: var(--gray-text);
-      font-size: 16px;
+      font-size: 11px;
       font-weight: 400;
     }
 
     .time-new {
       color: var(--red);
       font-weight: 700;
-      font-size: 22px;
+      font-size: 15px;
     }
 
     /* Рейс */
     .flight-number {
       color: var(--yellow);
       font-weight: 700;
-      font-size: 20px;
+      font-size: 14px;
     }
 
     /* Направление */
@@ -173,26 +173,26 @@
 
     .flight-dest-iata {
       color: var(--gray-text);
-      font-size: 15px;
-      margin-left: 5px;
+      font-size: 11px;
+      margin-left: 3px;
     }
 
     /* Выход */
     .flight-gate {
       font-weight: 700;
-      font-size: 22px;
+      font-size: 15px;
     }
 
     /* Статус */
     .status-badge {
       display: inline-block;
-      padding: 8px 18px;
-      border-radius: 25px;
-      font-size: 13px;
+      padding: 4px 10px;
+      border-radius: 15px;
+      font-size: 9px;
       font-weight: 700;
       white-space: pre-line;
       text-align: center;
-      line-height: 1.4;
+      line-height: 1.3;
       color: var(--white);
     }
 
@@ -216,13 +216,13 @@
     .empty-row td {
       text-align: center;
       color: var(--gray-text);
-      padding: 60px;
-      font-size: 18px;
+      padding: 40px;
+      font-size: 14px;
     }
 
     .empty-row i {
-      font-size: 48px;
-      margin-bottom: 12px;
+      font-size: 36px;
+      margin-bottom: 8px;
       opacity: 0.3;
       display: block;
     }
@@ -316,7 +316,6 @@
         const r = await fetch(`${API}?showDeparted=false`);
         const flights = await r.json();
         
-        // Фильтруем: только сегодняшние, без вылетевших
         const todayFlights = flights.filter(f => 
           (f.flightDay === 'today' || f.flightDay === 'tomorrow') && 
           f.status !== 'departed' && 
@@ -363,7 +362,6 @@
     updateClock();
     setInterval(updateClock, 1000);
     load();
-    // Автообновление каждые 15 секунд
     setInterval(load, 15000);
   </script>
 </body>
