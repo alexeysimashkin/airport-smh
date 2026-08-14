@@ -29,15 +29,16 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
     }
 
     .board-wrapper {
-      width: 100%;
-      max-width: 900px;
+      width: 100vw;
+      height: 100vh;
       background: var(--bg);
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      border-radius: 0;
     }
 
     /* ШАПКА */
@@ -45,23 +46,24 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 20px 24px;
+      padding: 25px 35px;
       border-bottom: 2px solid #3D3D3D;
+      flex-shrink: 0;
     }
 
     .board-header-left {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 18px;
     }
 
     .plane-icon {
-      font-size: 28px;
+      font-size: 36px;
       color: var(--yellow);
     }
 
     .board-title {
-      font-size: 22px;
+      font-size: 30px;
       font-weight: 800;
       color: var(--white);
       letter-spacing: 1px;
@@ -69,7 +71,7 @@
     }
 
     .board-subtitle {
-      font-size: 11px;
+      font-size: 13px;
       color: var(--gray-text);
       letter-spacing: 3px;
       text-transform: uppercase;
@@ -80,7 +82,7 @@
     }
 
     .board-time {
-      font-size: 32px;
+      font-size: 42px;
       font-weight: 700;
       color: var(--yellow);
       letter-spacing: 2px;
@@ -88,27 +90,35 @@
     }
 
     .board-date {
-      font-size: 11px;
+      font-size: 13px;
       color: var(--gray-text);
       letter-spacing: 1px;
     }
 
     /* ТАБЛИЦА */
+    .flights-table-wrap {
+      flex: 1;
+      overflow-y: auto;
+    }
+
     .flights-table {
       width: 100%;
       border-collapse: collapse;
     }
 
     .flights-table thead th {
-      padding: 12px 20px;
+      padding: 18px 30px;
       text-align: left;
-      font-size: 9px;
+      font-size: 11px;
       font-weight: 700;
       letter-spacing: 2px;
       text-transform: uppercase;
       color: var(--gray-text);
       border-bottom: 1px solid #3D3D3D;
       background: #222222;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
 
     .flights-table tbody tr {
@@ -121,8 +131,8 @@
     }
 
     .flights-table td {
-      padding: 14px 20px;
-      font-size: 16px;
+      padding: 20px 30px;
+      font-size: 20px;
       font-weight: 500;
       color: var(--white);
       white-space: nowrap;
@@ -132,28 +142,28 @@
     .flight-time {
       color: var(--yellow);
       font-weight: 700;
-      font-size: 18px;
+      font-size: 22px;
       font-variant-numeric: tabular-nums;
     }
 
     .time-old {
       text-decoration: line-through;
       color: var(--gray-text);
-      font-size: 13px;
+      font-size: 16px;
       font-weight: 400;
     }
 
     .time-new {
       color: var(--red);
       font-weight: 700;
-      font-size: 18px;
+      font-size: 22px;
     }
 
     /* Рейс */
     .flight-number {
       color: var(--yellow);
       font-weight: 700;
-      font-size: 16px;
+      font-size: 20px;
     }
 
     /* Направление */
@@ -163,22 +173,22 @@
 
     .flight-dest-iata {
       color: var(--gray-text);
-      font-size: 13px;
-      margin-left: 4px;
+      font-size: 15px;
+      margin-left: 5px;
     }
 
     /* Выход */
     .flight-gate {
       font-weight: 700;
-      font-size: 18px;
+      font-size: 22px;
     }
 
     /* Статус */
     .status-badge {
       display: inline-block;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 11px;
+      padding: 8px 18px;
+      border-radius: 25px;
+      font-size: 13px;
       font-weight: 700;
       white-space: pre-line;
       text-align: center;
@@ -193,7 +203,6 @@
     .st-boarding-end { background: rgba(167,139,250,0.25); color: #C4B5FD; }
     .st-delay { background: rgba(245,158,11,0.3); color: #FCD34D; }
     .st-cancel { background: rgba(239,68,68,0.35); color: #FCA5A5; font-weight: 800; }
-    .st-departed { background: rgba(148,163,184,0.2); color: #94A3B8; }
     .st-early { background: rgba(59,130,246,0.25); color: #93C5FD; }
     .st-suspended { background: rgba(148,163,184,0.2); color: #94A3B8; }
     .st-feeding { background: rgba(245,158,11,0.25); color: #FCD34D; }
@@ -207,13 +216,13 @@
     .empty-row td {
       text-align: center;
       color: var(--gray-text);
-      padding: 40px;
-      font-size: 14px;
+      padding: 60px;
+      font-size: 18px;
     }
 
     .empty-row i {
-      font-size: 32px;
-      margin-bottom: 8px;
+      font-size: 48px;
+      margin-bottom: 12px;
       opacity: 0.3;
       display: block;
     }
@@ -239,25 +248,27 @@
     </div>
 
     <!-- ТАБЛИЦА -->
-    <table class="flights-table">
-      <thead>
-        <tr>
-          <th>Время / Time</th>
-          <th>Направление / Destination</th>
-          <th>Рейс / Flight</th>
-          <th>Выход / Gate</th>
-          <th>Статус / Status</th>
-        </tr>
-      </thead>
-      <tbody id="flightsBody">
-        <tr class="empty-row">
-          <td colspan="5">
-            <i class="fas fa-plane"></i>
-            Загрузка...
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="flights-table-wrap">
+      <table class="flights-table">
+        <thead>
+          <tr>
+            <th>Время / Time</th>
+            <th>Направление / Destination</th>
+            <th>Рейс / Flight</th>
+            <th>Выход / Gate</th>
+            <th>Статус / Status</th>
+          </tr>
+        </thead>
+        <tbody id="flightsBody">
+          <tr class="empty-row">
+            <td colspan="5">
+              <i class="fas fa-plane"></i>
+              Загрузка...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <script>
@@ -289,7 +300,6 @@
 
     function getStatusClass(f) {
       if (f.status === 'cancelled') return 'st-cancel';
-      if (f.status === 'departed' || f.status === 'early_departed') return 'st-departed';
       if (f.status === 'suspended') return 'st-suspended';
       if (f.computedStatus === 'early') return 'st-early';
       if (f.computedStatus === 'checkin') return 'st-checkin';
@@ -297,15 +307,21 @@
       if (f.computedStatus === 'boarding') return 'st-boarding';
       if (f.computedStatus === 'boarding_completed') return 'st-boarding-end';
       if (f.computedStatus === 'delayed') return 'st-delay';
+      if (f.status === 'feeding') return 'st-feeding';
       return 'st-ok';
     }
 
     async function load() {
       try {
-        const r = await fetch(`${API}?showDeparted=true`);
+        const r = await fetch(`${API}?showDeparted=false`);
         const flights = await r.json();
         
-        const todayFlights = flights.filter(f => f.flightDay === 'today' || f.flightDay === 'tomorrow');
+        // Фильтруем: только сегодняшние, без вылетевших
+        const todayFlights = flights.filter(f => 
+          (f.flightDay === 'today' || f.flightDay === 'tomorrow') && 
+          f.status !== 'departed' && 
+          f.status !== 'early_departed'
+        );
         
         if (todayFlights.length === 0) {
           flightsBody.innerHTML = `
@@ -321,10 +337,9 @@
         flightsBody.innerHTML = todayFlights.map(f => {
           const delayed = f.expectedDeparture && new Date(f.expectedDeparture) > new Date(f.scheduledDeparture);
           const cancelled = f.status === 'cancelled';
-          const departed = f.status === 'departed' || f.status === 'early_departed';
           
           let timeHtml;
-          if (cancelled || departed) {
+          if (cancelled) {
             timeHtml = `<span class="time-old">${fmtTm(f.scheduledDeparture)}</span>`;
           } else if (delayed) {
             timeHtml = `<span class="time-old">${fmtTm(f.scheduledDeparture)}</span><br><span class="time-new">${fmtTm(f.expectedDeparture)}</span>`;
@@ -347,8 +362,9 @@
 
     updateClock();
     setInterval(updateClock, 1000);
-    setInterval(load, 30000);
     load();
+    // Автообновление каждые 15 секунд
+    setInterval(load, 15000);
   </script>
 </body>
 </html>
