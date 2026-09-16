@@ -25,7 +25,6 @@ pool.query(`CREATE TABLE IF NOT EXISTS arrivals (id TEXT PRIMARY KEY, data JSONB
 pool.query(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`).catch(e => console.log(e));
 
 const DAILY_FLIGHTS = [
-  "AS-1210|Москва|SVO|ASO Airlines|00:30",
   "AS-9482|Баку|GYD|ASO Airlines|00:40",
   "UT-478|Сургут|SGC|Utair|01:30",
   "M8-843|Грозный|GRV|Муссон|01:45",
