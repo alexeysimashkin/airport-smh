@@ -31,14 +31,13 @@ const DAILY_FLIGHTS = [
   "AS-9987|Дубай|DXB|ASO Airlines|02:30",
   "NS-601|Сочи|AER|Noris|03:00",
   "6N-344|Тобольск|RMZ|Severavia|03:05",
-  "WZ-2303|Новый Уренгой|NUX|Red Wings|03:15",
   "PC-5723|Анталья|AYT|Pegasus Airlines|04:15",
   "M8-743|Калининград|KGD|Муссон|06:40",
   "AS-620|Краснодар|KRR|ASO Airlines|06:45",
   "6N-572|Санкт-Петербург|LED|Severavia|07:00",
   "AS-2959|Сочи|AER|ASO Airlines|08:05",
-  "AS-9830|Пекин|PEK|ASO Airlines|08:20",
   "6N-645|Екатеринбург|HBS|Severavia|09:00",
+  "AS-9830|Пекин|PEK|ASO Airlines|10:20",
   "NS-383|Краснодар|KRR|Noris|10:30",
   "DP-6584|Москва|SVO|Победа|11:00",
   "AS-478|Сургут|SGC|ASO Airlines|12:15",
@@ -70,6 +69,7 @@ const DAILY_FLIGHTS = [
   "AS-3841|Новосибирск|OVB|ASO Airlines|23:05",
   "UT-358|Москва|VKO|Utair|23:10",
   "S7-5034|Новосибирск|OVB|S7 Airlines|23:30",
+  "6N-6388|Стамбул|IST|Severavia|23:40",
 ];
 
 function parseFlight(str) {
