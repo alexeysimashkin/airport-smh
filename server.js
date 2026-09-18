@@ -69,7 +69,6 @@ const DAILY_FLIGHTS = [
   "SU-1607|Москва|SVO|Аэрофлот|21:50",
   "AS-3841|Новосибирск|OVB|ASO Airlines|23:05",
   "UT-358|Москва|VKO|Utair|23:10",
-  "SM-451|Тюмень|TUM|SamAero|23:15",
   "S7-5034|Новосибирск|OVB|S7 Airlines|23:30",
 ];
 
