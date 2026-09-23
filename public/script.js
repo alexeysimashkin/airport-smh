@@ -52,7 +52,7 @@ function fmtDateOnly(s) {
   return `${d.getDate()} ${months[d.getMonth()]}`;
 }
 
-// ============ ЛОГОТИПЫ АВИАКОМПАНИЙ ============
+// ============ ЛОГОТИПЫ ============
 function getAirlineLogo(airlineName) {
   if (!airlineName) return null;
   const found = airlinesList.find(a => a.name.toLowerCase() === airlineName.toLowerCase());
@@ -320,10 +320,10 @@ function renderFlightRow(f) {
   if (feeding) statusHtml += `<span class="status-feeding-sub">Предоставление питания</span>`;
 
   const logo = getAirlineLogo(f.airline);
-const initials = getAirlineInitials(f.airline);
-const airlineHtml = logo
-  ? `<img src="${logo}" alt="${f.airline}" class="airline-logo-modal"><span>${f.airline}</span>`
-  : `<div class="airline-avatar-modal">${initials}</div><span>${f.airline}</span>`;
+  const initials = getAirlineInitials(f.airline);
+  const airlineHtml = logo
+    ? `<img src="${logo}" alt="${f.airline}" class="airline-logo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="airline-avatar" style="display:none">${initials}</div><span class="airline-name">${f.airline || ''}</span>`
+    : `<div class="airline-avatar">${initials}</div><span class="airline-name">${f.airline || ''}</span>`;
 
   return `<tr onclick="showDetail('${f.id}')" style="${departed ? 'opacity:0.6;' : ''}">
     <td class="time-cell">${timeHtml}</td>
@@ -372,14 +372,14 @@ window.showDetail = function(id) {
   const logo = getAirlineLogo(f.airline);
   const initials = getAirlineInitials(f.airline);
   const airlineHtml = logo
-    ? `<img src="${logo}" alt="${f.airline}" class="airline-logo" style="width:40px;height:40px;"><span>${f.airline}</span>`
-    : `<div class="airline-avatar" style="width:40px;height:40px;">${initials}</div><span>${f.airline}</span>`;
+    ? `<img src="${logo}" alt="${f.airline}" class="airline-logo-modal"><span>${f.airline}</span>`
+    : `<div class="airline-avatar-modal">${initials}</div><span>${f.airline}</span>`;
 
   modalBody.innerHTML = `
     <div class="modal-flight-top">
       <div>
         <div class="modal-flight-num">${f.flightNumber}</div>
-        <div class="modal-flight-airline" style="display:flex;align-items:center;gap:8px;">${airlineHtml}</div>
+        <div class="modal-flight-airline" style="display:flex;align-items:center;gap:10px;">${airlineHtml}</div>
       </div>
       <span class="status-tag ${tagClass}" style="font-size:14px;">${(f.statusText || 'По расписанию').replace(/\n/g,'<br>')}</span>
     </div>
