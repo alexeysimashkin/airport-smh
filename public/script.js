@@ -320,10 +320,10 @@ function renderFlightRow(f) {
   if (feeding) statusHtml += `<span class="status-feeding-sub">Предоставление питания</span>`;
 
   const logo = getAirlineLogo(f.airline);
-  const initials = getAirlineInitials(f.airline);
-  const airlineHtml = logo
-    ? `<img src="${logo}" alt="${f.airline}" class="airline-logo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="airline-avatar" style="display:none">${initials}</div>${f.airline || ''}`
-    : `<div class="airline-avatar">${initials}</div>${f.airline || ''}`;
+const initials = getAirlineInitials(f.airline);
+const airlineHtml = logo
+  ? `<img src="${logo}" alt="${f.airline}" class="airline-logo-modal"><span>${f.airline}</span>`
+  : `<div class="airline-avatar-modal">${initials}</div><span>${f.airline}</span>`;
 
   return `<tr onclick="showDetail('${f.id}')" style="${departed ? 'opacity:0.6;' : ''}">
     <td class="time-cell">${timeHtml}</td>
