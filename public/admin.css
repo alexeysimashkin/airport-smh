@@ -1,0 +1,528 @@
+/* ============ ЭКРАН ВХОДА ============ */
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 50%, #5B21B6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.login-overlay::before {
+  content: '';
+  position: absolute;
+  top: -30%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: float 8s ease-in-out infinite;
+}
+
+.login-overlay::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  left: -10%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(167,139,250,0.25) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: float 10s ease-in-out infinite reverse;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(30px, -30px); }
+}
+
+.login-box {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 28px;
+  padding: 48px 40px 36px;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.5);
+  position: relative;
+  z-index: 1;
+  animation: modalIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.login-box.shake {
+  animation: shake 0.4s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-10px); }
+  40%, 80% { transform: translateX(10px); }
+}
+
+@keyframes modalIn {
+  from { transform: scale(0.9) translateY(20px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.login-icon {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 20px;
+  background: linear-gradient(135deg, #7C3AED, #6D28D9);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 36px;
+  box-shadow: 0 15px 40px rgba(124, 58, 237, 0.4);
+}
+
+.login-box h2 {
+  font-size: 24px;
+  font-weight: 800;
+  color: #1E293B;
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+
+.login-box p {
+  font-size: 14px;
+  color: #94A3B8;
+  margin-bottom: 28px;
+}
+
+.login-box input {
+  width: 100%;
+  padding: 16px 20px;
+  border: 2px solid #E2E8F0;
+  border-radius: 16px;
+  font-size: 16px;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s;
+  text-align: center;
+  letter-spacing: 2px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  background: #F8FAFC;
+}
+
+.login-box input:focus {
+  outline: none;
+  border-color: #7C3AED;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
+}
+
+.login-box button#loginBtn {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #7C3AED, #6D28D9);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.25s;
+  box-shadow: 0 10px 30px rgba(124, 58, 237, 0.35);
+  letter-spacing: 0.5px;
+}
+
+.login-box button#loginBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px rgba(124, 58, 237, 0.5);
+}
+
+.login-box button#loginBtn:active {
+  transform: translateY(0);
+}
+
+.login-error {
+  color: #EF4444;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 14px;
+  min-height: 18px;
+}
+
+.login-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 24px;
+  color: #94A3B8;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.login-back:hover {
+  color: #7C3AED;
+}
+
+/* ============ СТИЛИ АДМИНКИ ============ */
+.admin-app {
+  max-width: 1400px;
+}
+
+.admin-logo {
+  background: linear-gradient(135deg, #6B7280, #374151);
+}
+
+/* Красивые кнопки в админке */
+.admin-top-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-airport-closed,
+.btn-airport-open,
+.btn-delete-old,
+.btn-primary {
+  padding: 12px 22px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Inter', sans-serif;
+  border: none;
+  letter-spacing: 0.3px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-airport-closed {
+  background: linear-gradient(135deg, #EF4444, #DC2626);
+  color: white;
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.35);
+}
+
+.btn-airport-closed:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(239, 68, 68, 0.5);
+}
+
+.btn-airport-open {
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: white;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+}
+
+.btn-airport-open:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.5);
+}
+
+.btn-delete-old {
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  color: white;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+}
+
+.btn-delete-old:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(245, 158, 11, 0.5);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #7C3AED, #6D28D9);
+  color: white;
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.35);
+}
+
+.btn-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(124, 58, 237, 0.5);
+}
+
+.btn-primary:active,
+.btn-airport-closed:active,
+.btn-airport-open:active,
+.btn-delete-old:active {
+  transform: translateY(-1px);
+}
+
+/* Кнопки иконок в списках */
+.btn-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #F1F5F9, #E2E8F0);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748B;
+  transition: all 0.25s;
+  font-size: 14px;
+}
+
+.btn-icon:hover {
+  background: linear-gradient(135deg, #7C3AED, #6D28D9);
+  color: white;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 15px rgba(124, 58, 237, 0.35);
+}
+
+.btn-icon.danger:hover {
+  background: linear-gradient(135deg, #EF4444, #DC2626);
+  box-shadow: 0 6px 15px rgba(239, 68, 68, 0.4);
+}
+
+/* Кнопка "Скрыть вылетевшие" в админке */
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 24px 0 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--gray-200);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+body.dark .list-header {
+  border-bottom-color: #3D3A4E;
+}
+
+.list-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+body.dark .list-title {
+  color: #94A3B8;
+}
+
+.btn-departed-admin {
+  padding: 10px 20px;
+  border-radius: 30px;
+  border: 2px solid #7C3AED;
+  background: transparent;
+  color: #7C3AED;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.25s;
+  font-family: 'Inter', sans-serif;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.3px;
+}
+
+.btn-departed-admin:hover {
+  background: #7C3AED;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.35);
+}
+
+.btn-departed-admin.active {
+  background: linear-gradient(135deg, #10B981, #059669);
+  border-color: #10B981;
+  color: white;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+}
+
+body.dark .btn-departed-admin {
+  border-color: #A78BFA;
+  color: #A78BFA;
+}
+
+body.dark .btn-departed-admin:hover {
+  background: #A78BFA;
+  color: #1E1B2E;
+}
+
+/* Список в админке — карточки */
+.admin-row {
+  background: linear-gradient(135deg, #FFFFFF, #F8FAFC);
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 8px;
+  border: 1px solid #E2E8F0;
+  transition: all 0.25s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.admin-row:hover {
+  border-color: rgba(124, 58, 237, 0.3);
+  box-shadow: 0 8px 25px rgba(124, 58, 237, 0.08);
+  transform: translateX(4px);
+}
+
+body.dark .admin-row {
+  background: linear-gradient(135deg, #2D2A3E, #252236);
+  border-color: #3D3A4E;
+}
+
+body.dark .admin-row:hover {
+  border-color: rgba(167, 139, 250, 0.4);
+}
+
+/* Авиакомпания — логотип превью */
+.airline-logo-preview {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #FFFFFF;
+  padding: 3px;
+  border: 1px solid #E2E8F0;
+}
+
+/* Срочная информация */
+.settings-block {
+  margin-bottom: 32px;
+}
+
+.settings-block h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+/* Кнопки "Сохранить"/"Удалить" срочную */
+.btn-urgent-save,
+.btn-urgent-delete {
+  padding: 12px 22px;
+  border-radius: 30px;
+  border: none;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.25s;
+  letter-spacing: 0.3px;
+}
+
+.btn-urgent-save {
+  background: linear-gradient(135deg, #EF4444, #DC2626);
+  color: white;
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.35);
+}
+
+.btn-urgent-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(239, 68, 68, 0.5);
+}
+
+.btn-urgent-delete {
+  background: linear-gradient(135deg, #F1F5F9, #E2E8F0);
+  color: #64748B;
+}
+
+.btn-urgent-delete:hover {
+  background: linear-gradient(135deg, #E2E8F0, #CBD5E1);
+  transform: translateY(-2px);
+}
+
+/* Красивые табы-секции */
+.main-tab {
+  transition: all 0.25s;
+  position: relative;
+}
+
+.main-tab:hover {
+  transform: translateY(-1px);
+}
+
+/* Красивые кнопки "Сохранить"/"Отмена" в формах */
+.btn-save {
+  padding: 12px 28px;
+  border-radius: 30px;
+  border: none;
+  background: linear-gradient(135deg, #7C3AED, #6D28D9);
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.25s;
+  font-family: 'Inter', sans-serif;
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.35);
+}
+
+.btn-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(124, 58, 237, 0.5);
+}
+
+.btn-cancel {
+  padding: 12px 28px;
+  border-radius: 30px;
+  border: 2px solid #E2E8F0;
+  background: transparent;
+  color: #64748B;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.25s;
+  font-family: 'Inter', sans-serif;
+}
+
+.btn-cancel:hover {
+  background: #F1F5F9;
+  transform: translateY(-2px);
+}
+
+body.dark .btn-cancel {
+  border-color: #3D3A4E;
+  color: #CBD5E1;
+}
+
+body.dark .btn-cancel:hover {
+  background: #252236;
+}
+
+/* Ургент-форма */
+.urgent-form {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.urgent-form input {
+  flex: 1;
+  min-width: 200px;
+  padding: 12px 18px;
+  border: 2px solid #E2E8F0;
+  border-radius: 14px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s;
+}
+
+.urgent-form input:focus {
+  outline: none;
+  border-color: #7C3AED;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
+}
