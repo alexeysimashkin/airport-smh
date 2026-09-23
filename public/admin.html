@@ -13,7 +13,21 @@
   <link rel="stylesheet" href="admin.css">
 </head>
 <body>
-  <div class="app admin-app">
+  <!-- ЭКРАН ВХОДА -->
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-box">
+      <div class="login-icon"><i class="fas fa-lock"></i></div>
+      <h2>Вход в админку</h2>
+      <p>Введите пароль для доступа к управлению</p>
+      <input type="password" id="loginPassword" placeholder="Пароль" autofocus>
+      <button id="loginBtn">Войти</button>
+      <p class="login-error" id="loginError"></p>
+      <a href="/" class="login-back"><i class="fas fa-arrow-left"></i> Вернуться к табло</a>
+    </div>
+  </div>
+
+  <!-- ОСНОВНОЙ КОНТЕНТ (скрыт пока не вошли) -->
+  <div class="app admin-app" id="adminContent" style="display:none;">
     <header class="header">
       <div class="header-inner">
         <div class="header-left">
@@ -46,14 +60,13 @@
             <button class="btn-airport-closed" id="btnAirportClosed"><i class="fas fa-lock"></i> Аэропорт закрыт</button>
             <button class="btn-airport-open" id="btnAirportOpen" style="display:none;"><i class="fas fa-lock-open"></i> Аэропорт открыт</button>
             <button class="btn-delete-old" id="btnDeleteOldFlights"><i class="fas fa-broom"></i> Удалить прошлые рейсы</button>
-            <button class="btn-primary" id="addFlightDep"><i class="fas fa-plus"></i> Добавить вылет</button>
-            <button class="btn-primary btn-arrival" id="addFlightArr"><i class="fas fa-plus"></i> Добавить прилёт</button>
+            <button class="btn-primary" id="addFlightDep"><i class="fas fa-plus"></i> Добавить рейс</button>
           </div>
         </div>
 
-        <!-- Форма вылета -->
+        <!-- Форма рейса -->
         <div class="form-card" id="flightFormDep" style="display:none;">
-          <h3 id="formTitleDep">Новый рейс (вылет)</h3>
+          <h3 id="formTitleDep">Новый рейс</h3>
           <form id="flightFormInnerDep">
             <input type="hidden" id="flightIdDep">
             <div class="form-grid">
@@ -90,42 +103,8 @@
           </form>
         </div>
 
-        <!-- Форма прилёта -->
-        <div class="form-card" id="flightFormArr" style="display:none;">
-          <h3 id="formTitleArr">Новый рейс (прилёт)</h3>
-          <form id="flightFormInnerArr">
-            <input type="hidden" id="flightIdArr">
-            <div class="form-grid">
-              <div class="field"><label>Номер рейса</label><input type="text" id="flightNumberArr" required placeholder="SU-1234"></div>
-              <div class="field"><label>Авиакомпания</label><select id="airlineArr" required></select></div>
-              <div class="field"><label>Откуда</label><input type="text" id="destinationArr" required placeholder="Москва"></div>
-              <div class="field"><label>Код IATA</label><input type="text" id="iataCodeArr" required placeholder="SVO" maxlength="3"></div>
-              <div class="field"><label>Прилёт по расписанию</label><input type="datetime-local" id="scheduledDepartureArr" required></div>
-              <div class="field"><label>Ожидаемый прилёт</label><input type="datetime-local" id="expectedDepartureArr"></div>
-              <div class="field"><label>Лента выдачи багажа</label><input type="text" id="baggageBeltArr" placeholder="3"></div>
-              <div class="field"><label>Статус</label><select id="statusArr">
-                <option value="scheduled">По расписанию</option>
-                <option value="delayed">Задержан</option>
-                <option value="early">Ранний прилёт</option>
-                <option value="expected">Прибытие ожидается</option>
-                <option value="arrived">Прибыл</option>
-                <option value="diverted">Отправлен на запасной аэродром</option>
-                <option value="suspended">Приостановлено</option>
-                <option value="cancelled">Отменён</option>
-              </select></div>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn-save">Сохранить</button>
-              <button type="button" class="btn-cancel" id="cancelFormArr">Отмена</button>
-            </div>
-          </form>
-        </div>
-
-        <h3 class="list-title">Вылеты</h3>
+        <h3 class="list-title">Все рейсы</h3>
         <div id="adminFlightsListDep"></div>
-
-        <h3 class="list-title">Прилёты</h3>
-        <div id="adminFlightsListArr"></div>
       </div>
     </div>
 
