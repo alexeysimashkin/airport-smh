@@ -3,6 +3,7 @@ let flightsDep = [];
 let airlinesList = [];
 let editingId = null;
 let editingAirlineId = null;
+let showDepartedAdmin = true; // В админке по умолчанию показываем все
 const API = '/api/flights';
 const AIRLINES_API = '/api/airlines';
 const ADMIN_PASSWORD = 'J6NBVCH71910';
@@ -16,7 +17,6 @@ const loginPassword = $('loginPassword');
 const loginBtn = $('loginBtn');
 const loginError = $('loginError');
 
-// Проверяем, входил ли уже
 if (sessionStorage.getItem('adminAuth') === 'true') {
   loginOverlay.style.display = 'none';
   adminContent.style.display = 'block';
@@ -32,9 +32,12 @@ function tryLogin() {
     loginError.textContent = '';
     initAdmin();
   } else {
-    loginError.textContent = 'Неверный пароль';
+    loginError.textContent = '❌ Неверный пароль. Попробуйте снова.';
     loginPassword.value = '';
     loginPassword.focus();
+    const box = document.querySelector('.login-box');
+    box.classList.add('shake');
+    setTimeout(() => box.classList.remove('shake'), 400);
   }
 }
 
@@ -141,11 +144,9 @@ async function loadUrgent() {
 
 // ============ НАСТРОЙКА КНОПОК ============
 function setupButtons() {
-  // Аэропорт
   $('btnAirportClosed').addEventListener('click', () => setAirportStatus('closed'));
   $('btnAirportOpen').addEventListener('click', () => setAirportStatus('open'));
 
-  // Срочная информация
   $('btnUrgentSave').addEventListener('click', async () => {
     const text = $('urgentInput').value.trim();
     if (!text) return;
@@ -162,7 +163,6 @@ function setupButtons() {
     loadUrgent();
   });
 
-  // Удаление прошлых рейсов
   $('btnDeleteOldFlights').addEventListener('click', async () => {
     if (!confirm('Удалить прошлые рейсы без статуса «Вылетел»?')) return;
     try {
@@ -173,7 +173,6 @@ function setupButtons() {
     } catch(e) { alert('Ошибка'); }
   });
 
-  // Форма вылета
   $('addFlightDep').addEventListener('click', () => {
     editingId = null;
     $('formTitleDep').textContent = 'Новый рейс';
@@ -213,7 +212,6 @@ function setupButtons() {
     loadAllFlights();
   });
 
-  // Авиакомпании
   $('addAirlineBtn').addEventListener('click', () => {
     editingAirlineId = null;
     $('airlineFormTitle').textContent = 'Новая авиакомпания';
@@ -240,6 +238,19 @@ function setupButtons() {
     editingAirlineId = null;
     loadAirlines();
   });
+
+  // ============ КНОПКА ПОКАЗАТЬ/СКРЫТЬ ВЫЛЕТЕВШИЕ ============
+  const toggleBtn = $('toggleDepartedAdmin');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      showDepartedAdmin = !showDepartedAdmin;
+      toggleBtn.classList.toggle('active', !showDepartedAdmin);
+      toggleBtn.innerHTML = showDepartedAdmin
+        ? '<i class="fas fa-eye-slash"></i> Скрыть вылетевшие'
+        : '<i class="fas fa-eye"></i> Показать вылетевшие';
+      renderAdminFlightsList();
+    });
+  }
 }
 
 // ============ РЕЙСЫ ============
@@ -266,11 +277,15 @@ function getTagClass(f) {
 
 function renderAdminFlightsList() {
   const list = $('adminFlightsListDep');
-  if (!flightsDep.length) {
+  const filtered = showDepartedAdmin
+    ? flightsDep
+    : flightsDep.filter(f => f.status !== 'departed' && f.status !== 'early_departed');
+
+  if (!filtered.length) {
     list.innerHTML = '<p style="text-align:center;color:var(--gray-400);padding:20px;">Нет рейсов</p>';
     return;
   }
-  list.innerHTML = flightsDep.map(f => `
+  list.innerHTML = filtered.map(f => `
     <div class="admin-row">
       <div class="admin-row-info">
         <span class="admin-row-number">${f.flightNumber}</span>
