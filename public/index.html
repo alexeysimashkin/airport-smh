@@ -39,7 +39,6 @@
     <header class="header">
       <div class="header-inner">
         <div class="header-left">
-          <a href="#" class="home-btn" title="На главную"><i class="fas fa-home"></i></a>
           <div class="logo"><i class="fas fa-plane-departure"></i></div>
           <div class="header-info">
             <h1>Аэропорт Симашкино</h1>
@@ -51,53 +50,27 @@
           <button class="audio-toggle" id="audioToggle" title="Вкл/выкл звук">🔊</button>
           <button class="theme-toggle" id="themeToggle" title="Переключить тему">🌙</button>
           <div class="live-clock"><span id="clockTime">00:00</span><span class="live-dot"></span></div>
+          <a href="/admin.html" class="admin-btn"><i class="fas fa-cog"></i><span>Управление</span></a>
         </div>
       </div>
     </header>
 
-    <div class="main-tabs">
-      <button class="main-tab active" data-mode="departure"><i class="fas fa-plane-departure"></i> ВЫЛЕТ</button>
-      <button class="main-tab" data-mode="arrival"><i class="fas fa-plane-arrival"></i> ПРИЛЁТ</button>
-    </div>
-
-    <div class="mode-panel" id="modeDeparture">
-      <div class="tabs-bar">
-        <button class="tab-btn active" data-tab="today">СЕГОДНЯ</button>
-        <button class="tab-btn" data-tab="tomorrow">ЗАВТРА</button>
-        <div class="departed-toggle">
-          <button class="btn-departed" id="toggleDepartedDep"><i class="fas fa-eye"></i> Показать вылетевшие</button>
-        </div>
-      </div>
-
-      <div class="board" id="boardTodayDep">
-        <div class="board-top"><div class="board-top-left"><h2>ВЫЛЕТ • СЕГОДНЯ</h2></div><div class="board-top-right"><span class="update-text">Обновлено: <strong id="lastUpdatedDep">--:--</strong></span></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Время</th><th>Направление</th><th>Рейс</th><th>Авиакомпания</th><th>Выход</th><th>Статус</th></tr></thead><tbody id="flightsTodayDep"></tbody></table></div>
-      </div>
-
-      <div class="board" id="boardTomorrowDep" style="display:none;">
-        <div class="board-top"><div class="board-top-left"><h2>ВЫЛЕТ • ЗАВТРА</h2></div><div class="board-top-right"><span class="update-text">Обновлено: <strong id="lastUpdatedDep2">--:--</strong></span></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Время</th><th>Направление</th><th>Рейс</th><th>Авиакомпания</th><th>Выход</th><th>Статус</th></tr></thead><tbody id="flightsTomorrowDep"></tbody></table></div>
+    <div class="tabs-bar">
+      <button class="tab-btn active" data-tab="today">СЕГОДНЯ</button>
+      <button class="tab-btn" data-tab="tomorrow">ЗАВТРА</button>
+      <div class="departed-toggle">
+        <button class="btn-departed" id="toggleDeparted"><i class="fas fa-eye"></i> Показать вылетевшие</button>
       </div>
     </div>
 
-    <div class="mode-panel" id="modeArrival" style="display:none;">
-      <div class="tabs-bar">
-        <button class="tab-btn active" data-tab="today">СЕГОДНЯ</button>
-        <button class="tab-btn" data-tab="tomorrow">ЗАВТРА</button>
-        <div class="departed-toggle">
-          <button class="btn-departed" id="toggleDepartedArr"><i class="fas fa-eye"></i> Показать прибывшие</button>
-        </div>
-      </div>
+    <div class="board" id="boardToday">
+      <div class="board-top"><div class="board-top-left"><h2>ВЫЛЕТ • СЕГОДНЯ</h2></div><div class="board-top-right"><span class="update-text">Обновлено: <strong id="lastUpdated">--:--</strong></span></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Время</th><th>Направление</th><th>Рейс</th><th>Авиакомпания</th><th>Выход</th><th>Статус</th></tr></thead><tbody id="flightsToday"></tbody></table></div>
+    </div>
 
-      <div class="board" id="boardTodayArr">
-        <div class="board-top"><div class="board-top-left"><h2>ПРИЛЁТ • СЕГОДНЯ</h2></div><div class="board-top-right"><span class="update-text">Обновлено: <strong id="lastUpdatedArr">--:--</strong></span></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Время</th><th>Откуда</th><th>Рейс</th><th>Авиакомпания</th><th>Лента</th><th>Статус</th></tr></thead><tbody id="flightsTodayArr"></tbody></table></div>
-      </div>
-
-      <div class="board" id="boardTomorrowArr" style="display:none;">
-        <div class="board-top"><div class="board-top-left"><h2>ПРИЛЁТ • ЗАВТРА</h2></div><div class="board-top-right"><span class="update-text">Обновлено: <strong id="lastUpdatedArr2">--:--</strong></span></div></div>
-        <div class="table-wrap"><table><thead><tr><th>Время</th><th>Откуда</th><th>Рейс</th><th>Авиакомпания</th><th>Лента</th><th>Статус</th></tr></thead><tbody id="flightsTomorrowArr"></tbody></table></div>
-      </div>
+    <div class="board" id="boardTomorrow" style="display:none;">
+      <div class="board-top"><div class="board-top-left"><h2>ВЫЛЕТ • ЗАВТРА</h2></div><div class="board-top-right"><span class="update-text">Обновлено: <strong id="lastUpdated2">--:--</strong></span></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Время</th><th>Направление</th><th>Рейс</th><th>Авиакомпания</th><th>Выход</th><th>Статус</th></tr></thead><tbody id="flightsTomorrow"></tbody></table></div>
     </div>
   </div>
 
