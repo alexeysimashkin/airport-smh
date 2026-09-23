@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Администрирование — Аэропорт Башкортостан (BHK)</title>
+  <title>Администрирование — Аэропорт Симашкино (SMH)</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +14,6 @@
 </head>
 <body>
   <div class="app admin-app">
-    <!-- ШАПКА -->
     <header class="header">
       <div class="header-inner">
         <div class="header-left">
@@ -22,7 +21,7 @@
           <div class="logo admin-logo"><i class="fas fa-cog"></i></div>
           <div class="header-info">
             <h1>Администрирование</h1>
-            <span class="header-sub">Аэропорт Башкортостан • BHK</span>
+            <span class="header-sub">Аэропорт Симашкино • SMH</span>
           </div>
         </div>
         <div class="header-right">
@@ -32,7 +31,6 @@
       </div>
     </header>
 
-    <!-- ГЛАВНЫЕ ВКЛАДКИ АДМИНКИ -->
     <div class="main-tabs">
       <button class="main-tab active" data-section="flights"><i class="fas fa-plane"></i> РЕЙСЫ</button>
       <button class="main-tab" data-section="airlines"><i class="fas fa-building"></i> АВИАКОМПАНИИ</button>
@@ -53,7 +51,7 @@
           </div>
         </div>
 
-        <!-- Форма рейса (вылет) -->
+        <!-- Форма вылета -->
         <div class="form-card" id="flightFormDep" style="display:none;">
           <h3 id="formTitleDep">Новый рейс (вылет)</h3>
           <form id="flightFormInnerDep">
@@ -92,7 +90,7 @@
           </form>
         </div>
 
-        <!-- Форма рейса (прилёт) -->
+        <!-- Форма прилёта -->
         <div class="form-card" id="flightFormArr" style="display:none;">
           <h3 id="formTitleArr">Новый рейс (прилёт)</h3>
           <form id="flightFormInnerArr">
@@ -123,11 +121,9 @@
           </form>
         </div>
 
-        <!-- Список вылетов -->
         <h3 class="list-title">Вылеты</h3>
         <div id="adminFlightsListDep"></div>
 
-        <!-- Список прилётов -->
         <h3 class="list-title">Прилёты</h3>
         <div id="adminFlightsListArr"></div>
       </div>
@@ -167,7 +163,6 @@
           <h2>Настройки аэропорта</h2>
         </div>
 
-        <!-- Срочная информация -->
         <div class="settings-block">
           <h3>Срочная информация</h3>
           <div class="urgent-form">
