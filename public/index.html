@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Онлайн-табло — Аэропорт Симашкино (SMH)</title>
+  <title>Онлайн-табло — Аэропорт Башкортостан (BHK)</title>
   
-  <!-- PWA -->
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#7C3AED">
+  <meta name="theme-color" content="#F97316">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Симашкино">
+  <meta name="apple-mobile-web-app-title" content="Башкортостан">
   <link rel="apple-touch-icon" href="/icon-192.png">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,7 +19,6 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- СПИННЕР ЗАГРУЗКИ -->
   <div class="spinner-overlay" id="spinnerOverlay">
     <div class="spinner"></div>
   </div>
@@ -28,7 +26,7 @@
   <div class="app">
     <!-- ДИСКЛЕЙМЕР -->
     <div class="disclaimer">
-      Аэропорт Симашкино является игровым аэропортом и никак не является официальным аэропортом города Самара. Использование рейсов из официального аэропорта Самары является частью игры — интереса к миру авиации.
+      Аэропорт Башкортостан является игровым аэропортом и никак не является официальным аэропортом города Уфа. Использование рейсов из официального аэропорта Уфы является частью игры — интереса к миру авиации.
     </div>
 
     <!-- БАННЕР СОСТОЯНИЯ АЭРОПОРТА -->
@@ -45,101 +43,68 @@
     <header class="header">
       <div class="header-inner">
         <div class="header-left">
+          <a href="#" class="home-btn" title="На главную"><i class="fas fa-home"></i></a>
           <div class="logo"><i class="fas fa-plane-departure"></i></div>
           <div class="header-info">
-            <h1>Аэропорт Симашкино</h1>
-            <span class="header-sub">Международный аэропорт Самары</span>
+            <h1>Аэропорт Башкортостан</h1>
+            <span class="header-sub">Международный аэропорт Уфы</span>
           </div>
         </div>
-        <div class="header-center">
-          <div class="iata-badge">SMH</div>
-        </div>
+        <div class="header-center"><div class="iata-badge">BHK</div></div>
         <div class="header-right">
           <button class="audio-toggle" id="audioToggle" title="Вкл/выкл звук">🔊</button>
           <button class="theme-toggle" id="themeToggle" title="Переключить тему">🌙</button>
           <div class="live-clock"><span id="clockTime">00:00</span><span class="live-dot"></span></div>
-          <button class="admin-btn" id="adminToggle"><i class="fas fa-cog"></i><span>Управление</span></button>
         </div>
       </div>
     </header>
 
-    <!-- УПРАВЛЕНИЕ -->
-    <div class="admin" id="adminPanel">
-      <div class="admin-top">
-        <h2>Управление рейсами</h2>
-        <div class="admin-top-buttons">
-          <button class="btn-airport-closed" id="btnAirportClosed"><i class="fas fa-lock"></i> Аэропорт закрыт</button>
-          <button class="btn-airport-open" id="btnAirportOpen" style="display:none;"><i class="fas fa-lock-open"></i> Аэропорт открыт</button>
-          <button class="btn-delete-old" id="btnDeleteOldFlights"><i class="fas fa-broom"></i> Удалить прошлые рейсы</button>
-          <button class="btn-primary" id="addFlightBtn"><i class="fas fa-plus"></i> Добавить рейс</button>
+    <!-- ГЛАВНЫЕ ВКЛАДКИ -->
+    <div class="main-tabs">
+      <button class="main-tab active" data-mode="departure"><i class="fas fa-plane-departure"></i> ВЫЛЕТ</button>
+      <button class="main-tab" data-mode="arrival"><i class="fas fa-plane-arrival"></i> ПРИЛЁТ</button>
+    </div>
+
+    <!-- ВЫЛЕТ -->
+    <div class="mode-panel" id="modeDeparture">
+      <div class="tabs-bar">
+        <button class="tab-btn active" data-tab="today">СЕГОДНЯ</button>
+        <button class="tab-btn" data-tab="tomorrow">ЗАВТРА</button>
+        <div class="departed-toggle">
+          <button class="btn-departed" id="toggleDepartedDep"><i class="fas fa-eye"></i> Показать вылетевшие</button>
         </div>
       </div>
 
-      <!-- СРОЧНАЯ ИНФОРМАЦИЯ -->
-      <div class="urgent-form">
-        <input type="text" id="urgentInput" placeholder="Введите срочную информацию...">
-        <button class="btn-urgent-save" id="btnUrgentSave"><i class="fas fa-save"></i> Сохранить</button>
-        <button class="btn-urgent-delete" id="btnUrgentDelete" style="display:none;"><i class="fas fa-trash"></i> Удалить</button>
+      <div class="board" id="boardTodayDep">
+        <div class="board-top"><div class="board-top-left"><h2>ВЫЛЕТ • СЕГОДНЯ</h2></div><div class="board-top-right"><span class="update-text">Обновлено: <strong id="lastUpdatedDep">--:--</strong></span></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Время</th><th>Направление</th><th>Рейс</th><th>Авиакомпания</th><th>Выход</th><th>Статус</th></tr></thead><tbody id="flightsTodayDep"></tbody></table></div>
       </div>
 
-      <div class="form-card" id="flightForm" style="display:none;">
-        <h3 id="formTitle">Новый рейс</h3>
-        <form id="flightFormInner">
-          <input type="hidden" id="flightId">
-          <div class="form-grid">
-            <div class="field"><label>Номер рейса</label><input type="text" id="flightNumber" required placeholder="SU-1234"></div>
-            <div class="field"><label>Авиакомпания</label><input type="text" id="airline" required placeholder="Аэрофлот"></div>
-            <div class="field"><label>Направление</label><input type="text" id="destination" required placeholder="Москва"></div>
-            <div class="field"><label>Код IATA</label><input type="text" id="iataCode" required placeholder="SVO" maxlength="3"></div>
-            <div class="field"><label>Вылет по расписанию</label><input type="datetime-local" id="scheduledDeparture" required></div>
-            <div class="field"><label>Ожидаемый вылет</label><input type="datetime-local" id="expectedDeparture"></div>
-            <div class="field"><label>Начало регистрации</label><input type="datetime-local" id="checkInStart"></div>
-            <div class="field"><label>Конец регистрации</label><input type="datetime-local" id="checkInEnd"></div>
-            <div class="field"><label>Стойки</label><input type="text" id="checkInCounters" placeholder="1-5"></div>
-            <div class="field"><label>Начало посадки</label><input type="datetime-local" id="boardingStart"></div>
-            <div class="field"><label>Конец посадки</label><input type="datetime-local" id="boardingEnd"></div>
-            <div class="field"><label>Выход (Gate)</label><input type="text" id="boardingGate" placeholder="A12"></div>
-            <div class="field"><label>Статус</label><select id="status">
-              <option value="scheduled">По расписанию</option>
-              <option value="checkin">Регистрация</option>
-              <option value="checkin_completed">Регистрация окончена</option>
-              <option value="boarding">Посадка</option>
-              <option value="boarding_completed">Посадка окончена</option>
-              <option value="delayed">Задержан</option>
-              <option value="early_departed">Вылетел ранее</option>
-              <option value="feeding">Предоставление питания</option>
-              <option value="suspended">Приостановлено</option>
-              <option value="cancelled">Отменён</option>
-              <option value="departed">Вылетел</option>
-            </select></div>
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="btn-save">Сохранить</button>
-            <button type="button" class="btn-cancel" id="cancelForm">Отмена</button>
-          </div>
-        </form>
-      </div>
-      <div id="adminFlightsList"></div>
-    </div>
-
-    <!-- ВКЛАДКИ -->
-    <div class="tabs-bar">
-      <button class="tab-btn active" data-tab="today">СЕГОДНЯ</button>
-      <button class="tab-btn" data-tab="tomorrow">ЗАВТРА</button>
-      <div class="departed-toggle">
-        <button class="btn-departed" id="toggleDeparted"><i class="fas fa-eye"></i> Показать вылетевшие</button>
+      <div class="board" id="boardTomorrowDep" style="display:none;">
+        <div class="board-top"><div class="board-top-left"><h2>ВЫЛЕТ • ЗАВТРА</h2></div><div class="board-top-right"><span class="update-text">Обновлено: <strong id="lastUpdatedDep2">--:--</strong></span></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Время</th><th>Направление</th><th>Рейс</th><th>Авиакомпания</th><th>Выход</th><th>Статус</th></tr></thead><tbody id="flightsTomorrowDep"></tbody></table></div>
       </div>
     </div>
 
-    <!-- ТАБЛО -->
-    <div class="board" id="boardToday">
-      <div class="board-top"><div class="board-top-left"><h2>ВЫЛЕТ • СЕГОДНЯ</h2></div><div class="board-top-right"><span class="update-text">Обновлено: <strong id="lastUpdated">--:--</strong></span></div></div>
-      <div class="table-wrap"><table><thead><tr><th>Время</th><th>Направление</th><th>Рейс</th><th>Авиакомпания</th><th>Выход</th><th>Статус</th></tr></thead><tbody id="flightsToday"></tbody></table></div>
-    </div>
+    <!-- ПРИЛЁТ -->
+    <div class="mode-panel" id="modeArrival" style="display:none;">
+      <div class="tabs-bar">
+        <button class="tab-btn active" data-tab="today">СЕГОДНЯ</button>
+        <button class="tab-btn" data-tab="tomorrow">ЗАВТРА</button>
+        <div class="departed-toggle">
+          <button class="btn-departed" id="toggleDepartedArr"><i class="fas fa-eye"></i> Показать прибывшие</button>
+        </div>
+      </div>
 
-    <div class="board" id="boardTomorrow" style="display:none;">
-      <div class="board-top"><div class="board-top-left"><h2>ВЫЛЕТ • ЗАВТРА</h2></div><div class="board-top-right"><span class="update-text">Обновлено: <strong id="lastUpdated2">--:--</strong></span></div></div>
-      <div class="table-wrap"><table><thead><tr><th>Время</th><th>Направление</th><th>Рейс</th><th>Авиакомпания</th><th>Выход</th><th>Статус</th></tr></thead><tbody id="flightsTomorrow"></tbody></table></div>
+      <div class="board" id="boardTodayArr">
+        <div class="board-top"><div class="board-top-left"><h2>ПРИЛЁТ • СЕГОДНЯ</h2></div><div class="board-top-right"><span class="update-text">Обновлено: <strong id="lastUpdatedArr">--:--</strong></span></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Время</th><th>Откуда</th><th>Рейс</th><th>Авиакомпания</th><th>Лента</th><th>Статус</th></tr></thead><tbody id="flightsTodayArr"></tbody></table></div>
+      </div>
+
+      <div class="board" id="boardTomorrowArr" style="display:none;">
+        <div class="board-top"><div class="board-top-left"><h2>ПРИЛЁТ • ЗАВТРА</h2></div><div class="board-top-right"><span class="update-text">Обновлено: <strong id="lastUpdatedArr2">--:--</strong></span></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Время</th><th>Откуда</th><th>Рейс</th><th>Авиакомпания</th><th>Лента</th><th>Статус</th></tr></thead><tbody id="flightsTomorrowArr"></tbody></table></div>
+      </div>
     </div>
   </div>
 
