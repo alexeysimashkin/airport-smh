@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Администрирование — Аэропорт Башкортостан (BHK)</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <div class="app admin-app">
+    <!-- ШАПКА -->
+    <header class="header">
+      <div class="header-inner">
+        <div class="header-left">
+          <a href="/" class="home-btn" title="На табло"><i class="fas fa-arrow-left"></i></a>
+          <div class="logo admin-logo"><i class="fas fa-cog"></i></div>
+          <div class="header-info">
+            <h1>Администрирование</h1>
+            <span class="header-sub">Аэропорт Башкортостан • BHK</span>
+          </div>
+        </div>
+        <div class="header-right">
+          <button class="theme-toggle" id="themeToggle" title="Переключить тему">🌙</button>
+          <a href="/" class="admin-btn"><i class="fas fa-tv"></i><span>К табло</span></a>
+        </div>
+      </div>
+    </header>
+
+    <!-- ГЛАВНЫЕ ВКЛАДКИ АДМИНКИ -->
+    <div class="main-tabs">
+      <button class="main-tab active" data-section="flights"><i class="fas fa-plane"></i> РЕЙСЫ</button>
+      <button class="main-tab" data-section="airlines"><i class="fas fa-building"></i> АВИАКОМПАНИИ</button>
+      <button class="main-tab" data-section="settings"><i class="fas fa-sliders-h"></i> НАСТРОЙКИ</button>
+    </div>
+
+    <!-- СЕКЦИЯ: РЕЙСЫ -->
+    <div class="section-panel" id="section-flights">
+      <div class="admin">
+        <div class="admin-top">
+          <h2>Управление рейсами</h2>
+          <div class="admin-top-buttons">
+            <button class="btn-airport-closed" id="btnAirportClosed"><i class="fas fa-lock"></i> Аэропорт закрыт</button>
+            <button class="btn-airport-open" id="btnAirportOpen" style="display:none;"><i class="fas fa-lock-open"></i> Аэропорт открыт</button>
+            <button class="btn-delete-old" id="btnDeleteOldFlights"><i class="fas fa-broom"></i> Удалить прошлые рейсы</button>
+            <button class="btn-primary" id="addFlightDep"><i class="fas fa-plus"></i> Добавить вылет</button>
+            <button class="btn-primary btn-arrival" id="addFlightArr"><i class="fas fa-plus"></i> Добавить прилёт</button>
+          </div>
+        </div>
+
+        <!-- Форма рейса (вылет) -->
+        <div class="form-card" id="flightFormDep" style="display:none;">
+          <h3 id="formTitleDep">Новый рейс (вылет)</h3>
+          <form id="flightFormInnerDep">
+            <input type="hidden" id="flightIdDep">
+            <div class="form-grid">
+              <div class="field"><label>Номер рейса</label><input type="text" id="flightNumberDep" required placeholder="SU-1234"></div>
+              <div class="field"><label>Авиакомпания</label><select id="airlineDep" required></select></div>
+              <div class="field"><label>Направление</label><input type="text" id="destinationDep" required placeholder="Москва"></div>
+              <div class="field"><label>Код IATA</label><input type="text" id="iataCodeDep" required placeholder="SVO" maxlength="3"></div>
+              <div class="field"><label>Вылет по расписанию</label><input type="datetime-local" id="scheduledDepartureDep" required></div>
+              <div class="field"><label>Ожидаемый вылет</label><input type="datetime-local" id="expectedDepartureDep"></div>
+              <div class="field"><label>Начало регистрации</label><input type="datetime-local" id="checkInStartDep"></div>
+              <div class="field"><label>Конец регистрации</label><input type="datetime-local" id="checkInEndDep"></div>
+              <div class="field"><label>Стойки</label><input type="text" id="checkInCountersDep" placeholder="1-5"></div>
+              <div class="field"><label>Начало посадки</label><input type="datetime-local" id="boardingStartDep"></div>
+              <div class="field"><label>Конец посадки</label><input type="datetime-local" id="boardingEndDep"></div>
+              <div class="field"><label>Выход (Gate)</label><input type="text" id="boardingGateDep" placeholder="A12"></div>
+              <div class="field"><label>Статус</label><select id="statusDep">
+                <option value="scheduled">По расписанию</option>
+                <option value="checkin">Регистрация</option>
+                <option value="checkin_completed">Регистрация окончена</option>
+                <option value="boarding">Посадка</option>
+                <option value="boarding_completed">Посадка окончена</option>
+                <option value="delayed">Задержан</option>
+                <option value="early_departed">Вылетел ранее</option>
+                <option value="feeding">Предоставление питания</option>
+                <option value="suspended">Приостановлено</option>
+                <option value="cancelled">Отменён</option>
+                <option value="departed">Вылетел</option>
+              </select></div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-save">Сохранить</button>
+              <button type="button" class="btn-cancel" id="cancelFormDep">Отмена</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Форма рейса (прилёт) -->
+        <div class="form-card" id="flightFormArr" style="display:none;">
+          <h3 id="formTitleArr">Новый рейс (прилёт)</h3>
+          <form id="flightFormInnerArr">
+            <input type="hidden" id="flightIdArr">
+            <div class="form-grid">
+              <div class="field"><label>Номер рейса</label><input type="text" id="flightNumberArr" required placeholder="SU-1234"></div>
+              <div class="field"><label>Авиакомпания</label><select id="airlineArr" required></select></div>
+              <div class="field"><label>Откуда</label><input type="text" id="destinationArr" required placeholder="Москва"></div>
+              <div class="field"><label>Код IATA</label><input type="text" id="iataCodeArr" required placeholder="SVO" maxlength="3"></div>
+              <div class="field"><label>Прилёт по расписанию</label><input type="datetime-local" id="scheduledDepartureArr" required></div>
+              <div class="field"><label>Ожидаемый прилёт</label><input type="datetime-local" id="expectedDepartureArr"></div>
+              <div class="field"><label>Лента выдачи багажа</label><input type="text" id="baggageBeltArr" placeholder="3"></div>
+              <div class="field"><label>Статус</label><select id="statusArr">
+                <option value="scheduled">По расписанию</option>
+                <option value="delayed">Задержан</option>
+                <option value="early">Ранний прилёт</option>
+                <option value="expected">Прибытие ожидается</option>
+                <option value="arrived">Прибыл</option>
+                <option value="diverted">Отправлен на запасной аэродром</option>
+                <option value="suspended">Приостановлено</option>
+                <option value="cancelled">Отменён</option>
+              </select></div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-save">Сохранить</button>
+              <button type="button" class="btn-cancel" id="cancelFormArr">Отмена</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Список вылетов -->
+        <h3 class="list-title">Вылеты</h3>
+        <div id="adminFlightsListDep"></div>
+
+        <!-- Список прилётов -->
+        <h3 class="list-title">Прилёты</h3>
+        <div id="adminFlightsListArr"></div>
+      </div>
+    </div>
+
+    <!-- СЕКЦИЯ: АВИАКОМПАНИИ -->
+    <div class="section-panel" id="section-airlines" style="display:none;">
+      <div class="admin">
+        <div class="admin-top">
+          <h2>Управление авиакомпаниями</h2>
+          <button class="btn-primary" id="addAirlineBtn"><i class="fas fa-plus"></i> Добавить авиакомпанию</button>
+        </div>
+
+        <div class="form-card" id="airlineForm" style="display:none;">
+          <h3 id="airlineFormTitle">Новая авиакомпания</h3>
+          <form id="airlineFormInner">
+            <input type="hidden" id="airlineId">
+            <div class="form-grid form-grid-2">
+              <div class="field"><label>Название</label><input type="text" id="airlineName" required placeholder="Аэрофлот"></div>
+              <div class="field"><label>Ссылка на логотип</label><input type="url" id="airlineLogo" placeholder="https://example.com/logo.png"></div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-save">Сохранить</button>
+              <button type="button" class="btn-cancel" id="cancelAirlineForm">Отмена</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="airlinesList"></div>
+      </div>
+    </div>
+
+    <!-- СЕКЦИЯ: НАСТРОЙКИ -->
+    <div class="section-panel" id="section-settings" style="display:none;">
+      <div class="admin">
+        <div class="admin-top">
+          <h2>Настройки аэропорта</h2>
+        </div>
+
+        <!-- Срочная информация -->
+        <div class="settings-block">
+          <h3>Срочная информация</h3>
+          <div class="urgent-form">
+            <input type="text" id="urgentInput" placeholder="Введите срочную информацию...">
+            <button class="btn-urgent-save" id="btnUrgentSave"><i class="fas fa-save"></i> Сохранить</button>
+            <button class="btn-urgent-delete" id="btnUrgentDelete" style="display:none;"><i class="fas fa-trash"></i> Удалить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
