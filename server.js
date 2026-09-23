@@ -23,6 +23,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 pool.query(`CREATE TABLE IF NOT EXISTS departures (id TEXT PRIMARY KEY, data JSONB NOT NULL)`).catch(e => console.log(e));
 pool.query(`CREATE TABLE IF NOT EXISTS arrivals (id TEXT PRIMARY KEY, data JSONB NOT NULL)`).catch(e => console.log(e));
 pool.query(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`).catch(e => console.log(e));
+pool.query(`CREATE TABLE IF NOT EXISTS airlines (id TEXT PRIMARY KEY, data JSONB NOT NULL)`).catch(e => console.log(e));
 
 const DAILY_FLIGHTS = [
   "AS-9482|Баку|GYD|ASO Airlines|00:40",
@@ -196,6 +197,17 @@ function getFlightDay(f) {
   return 'today';
 }
 
+// ============ АВИАКОМПАНИИ ============
+async function loadAirlines() {
+  try { const r = await pool.query(`SELECT data FROM airlines`); return r.rows.map(x => x.data); }
+  catch(e) { return []; }
+}
+
+async function saveAirline(a) {
+  await pool.query(`INSERT INTO airlines (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2`, [a.id, JSON.stringify(a)]);
+}
+
+// ============ API ============
 app.get('/api/airport-status', async (req, res) => {
   try { const r = await pool.query(`SELECT value FROM settings WHERE key = 'airport_status'`); res.json({ status: r.rows[0]?.value || 'open' }); }
   catch(e) { res.json({ status: 'open' }); }
@@ -230,12 +242,41 @@ app.delete('/api/old-flights', async (req, res) => {
     return false;
   });
   const toDelete = flights.filter(f => !kept.includes(f));
-  for (const f of toDelete) {
-    await deleteOne(f.id, 'departures');
-  }
+  for (const f of toDelete) await deleteOne(f.id, 'departures');
   res.json({ deleted: toDelete.length, kept: kept.length });
 });
 
+// Авиакомпании
+app.get('/api/airlines', async (req, res) => {
+  const airlines = await loadAirlines();
+  res.json(airlines);
+});
+
+app.post('/api/airlines', async (req, res) => {
+  const airline = {
+    id: Date.now().toString(),
+    name: req.body.name || '',
+    logo: req.body.logo || ''
+  };
+  await saveAirline(airline);
+  res.status(201).json(airline);
+});
+
+app.put('/api/airlines/:id', async (req, res) => {
+  const airlines = await loadAirlines();
+  const i = airlines.findIndex(a => a.id === req.params.id);
+  if (i === -1) return res.status(404).json({ error: 'Не найдена' });
+  airlines[i] = { ...airlines[i], ...req.body, id: airlines[i].id };
+  await saveAirline(airlines[i]);
+  res.json(airlines[i]);
+});
+
+app.delete('/api/airlines/:id', async (req, res) => {
+  await pool.query(`DELETE FROM airlines WHERE id = $1`, [req.params.id]);
+  res.status(204).send();
+});
+
+// Рейсы
 app.get('/api/flights', async (req, res) => {
   await ensureDailyFlights();
   const type = req.query.type || 'departure';
@@ -263,7 +304,24 @@ app.get('/api/flights', async (req, res) => {
 app.post('/api/flights', async (req, res) => {
   const type = req.query.type || 'departure';
   const table = type === 'departure' ? 'departures' : 'arrivals';
-  const f = { id: Date.now().toString(), flightNumber: req.body.flightNumber || '', destination: req.body.destination || '', iataCode: req.body.iataCode || '', airline: req.body.airline || '', scheduledTime: req.body.scheduledTime || '', scheduledDeparture: req.body.scheduledDeparture || null, expectedDeparture: req.body.expectedDeparture || null, checkInStart: req.body.checkInStart || null, checkInEnd: req.body.checkInEnd || null, checkInCounters: req.body.checkInCounters || '', boardingStart: req.body.boardingStart || null, boardingEnd: req.body.boardingEnd || null, boardingGate: req.body.boardingGate || '', baggageBelt: req.body.baggageBelt || '', status: req.body.status || 'scheduled' };
+  const f = {
+    id: Date.now().toString(),
+    flightNumber: req.body.flightNumber || '',
+    destination: req.body.destination || '',
+    iataCode: req.body.iataCode || '',
+    airline: req.body.airline || '',
+    scheduledTime: req.body.scheduledTime || '',
+    scheduledDeparture: req.body.scheduledDeparture || null,
+    expectedDeparture: req.body.expectedDeparture || null,
+    checkInStart: req.body.checkInStart || null,
+    checkInEnd: req.body.checkInEnd || null,
+    checkInCounters: req.body.checkInCounters || '',
+    boardingStart: req.body.boardingStart || null,
+    boardingEnd: req.body.boardingEnd || null,
+    boardingGate: req.body.boardingGate || '',
+    baggageBelt: req.body.baggageBelt || '',
+    status: req.body.status || 'scheduled'
+  };
   await saveOne(f, table);
   res.status(201).json(f);
 });
@@ -286,10 +344,8 @@ app.delete('/api/flights/:id', async (req, res) => {
   res.status(204).send();
 });
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Симашкино OK'));
+app.listen(PORT, () => console.log('BHK OK'));
 module.exports = app;
