@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Онлайн-табло — Аэропорт Башкортостан (BHK)</title>
+  <title>Онлайн-табло — Аэропорт Симашкино (SMH)</title>
   
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#F97316">
+  <meta name="theme-color" content="#7C3AED">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Башкортостан">
+  <meta name="apple-mobile-web-app-title" content="Симашкино">
   <link rel="apple-touch-icon" href="/icon-192.png">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,33 +24,29 @@
   </div>
 
   <div class="app">
-    <!-- ДИСКЛЕЙМЕР -->
     <div class="disclaimer">
-      Аэропорт Башкортостан является игровым аэропортом и никак не является официальным аэропортом города Уфа. Использование рейсов из официального аэропорта Уфы является частью игры — интереса к миру авиации.
+      Аэропорт Симашкино является игровым аэропортом и никак не является официальным аэропортом города Самара. Использование рейсов из официального аэропорта Самары является частью игры — интереса к миру авиации.
     </div>
 
-    <!-- БАННЕР СОСТОЯНИЯ АЭРОПОРТА -->
     <div class="airport-banner" id="airportBanner">
       <i class="fas fa-check-circle"></i> <span id="airportBannerText">Аэропорт открыт</span>
     </div>
 
-    <!-- СРОЧНАЯ ИНФОРМАЦИЯ -->
     <div class="urgent-info" id="urgentInfo" style="display:none;">
       <i class="fas fa-exclamation-circle"></i> <span id="urgentInfoText"></span>
     </div>
 
-    <!-- ШАПКА -->
     <header class="header">
       <div class="header-inner">
         <div class="header-left">
           <a href="#" class="home-btn" title="На главную"><i class="fas fa-home"></i></a>
           <div class="logo"><i class="fas fa-plane-departure"></i></div>
           <div class="header-info">
-            <h1>Аэропорт Башкортостан</h1>
-            <span class="header-sub">Международный аэропорт Уфы</span>
+            <h1>Аэропорт Симашкино</h1>
+            <span class="header-sub">Международный аэропорт Самары</span>
           </div>
         </div>
-        <div class="header-center"><div class="iata-badge">BHK</div></div>
+        <div class="header-center"><div class="iata-badge">SMH</div></div>
         <div class="header-right">
           <button class="audio-toggle" id="audioToggle" title="Вкл/выкл звук">🔊</button>
           <button class="theme-toggle" id="themeToggle" title="Переключить тему">🌙</button>
@@ -59,13 +55,11 @@
       </div>
     </header>
 
-    <!-- ГЛАВНЫЕ ВКЛАДКИ -->
     <div class="main-tabs">
       <button class="main-tab active" data-mode="departure"><i class="fas fa-plane-departure"></i> ВЫЛЕТ</button>
       <button class="main-tab" data-mode="arrival"><i class="fas fa-plane-arrival"></i> ПРИЛЁТ</button>
     </div>
 
-    <!-- ВЫЛЕТ -->
     <div class="mode-panel" id="modeDeparture">
       <div class="tabs-bar">
         <button class="tab-btn active" data-tab="today">СЕГОДНЯ</button>
@@ -86,7 +80,6 @@
       </div>
     </div>
 
-    <!-- ПРИЛЁТ -->
     <div class="mode-panel" id="modeArrival" style="display:none;">
       <div class="tabs-bar">
         <button class="tab-btn active" data-tab="today">СЕГОДНЯ</button>
@@ -108,7 +101,6 @@
     </div>
   </div>
 
-  <!-- МОДАЛЬНОЕ ОКНО -->
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal" id="flightModal">
       <div class="modal-head"><h2 id="modalTitle">Рейс</h2><button id="modalClose"><i class="fas fa-times"></i></button></div>
