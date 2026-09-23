@@ -119,6 +119,8 @@ body.dark .timeline-item::before { background: #3D3A4E; }
 body.dark .extra-label { color: #94A3B8; }
 body.dark .extra-value { color: #E2E8F0; }
 body.dark .modal-fs-iata { background: #3D3A4E; color: #A78BFA; }
+body.dark .theme-toggle:hover { background: rgba(255,255,255,0.1); }
+body.dark .audio-toggle:hover { background: rgba(255,255,255,0.1); }
 
 /* DISCLAIMER */
 .disclaimer {
@@ -188,25 +190,13 @@ body.dark .modal-fs-iata { background: #3D3A4E; color: #A78BFA; }
 }
 @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(1.6)} }
 
-/* AUDIO TOGGLE */
-.audio-toggle {
+.audio-toggle, .theme-toggle {
   background: none; border: none;
   font-size: 20px; cursor: pointer;
   padding: 4px 8px; border-radius: 8px;
   transition: background 0.2s;
 }
-.audio-toggle:hover { background: rgba(0,0,0,0.05); }
-body.dark .audio-toggle:hover { background: rgba(255,255,255,0.1); }
-
-/* THEME TOGGLE */
-.theme-toggle {
-  background: none; border: none;
-  font-size: 20px; cursor: pointer;
-  padding: 4px 8px; border-radius: 8px;
-  transition: background 0.2s;
-}
-.theme-toggle:hover { background: rgba(0,0,0,0.05); }
-body.dark .theme-toggle:hover { background: rgba(255,255,255,0.1); }
+.audio-toggle:hover, .theme-toggle:hover { background: rgba(0,0,0,0.05); }
 
 .admin-btn {
   background: var(--gray-50); border: 1px solid var(--gray-200);
@@ -214,6 +204,7 @@ body.dark .theme-toggle:hover { background: rgba(255,255,255,0.1); }
   font-weight: 600; font-size: 13px; color: var(--gray-600);
   display: flex; align-items: center; gap: 7px; transition: all 0.2s;
   font-family: 'Inter', sans-serif;
+  text-decoration: none;
 }
 .admin-btn:hover { background: var(--gray-100); border-color: var(--purple-light); color: var(--purple); }
 
@@ -253,7 +244,6 @@ body.dark .theme-toggle:hover { background: rgba(255,255,255,0.1); }
 }
 .btn-primary:hover { background: var(--purple-dark); transform: translateY(-1px); }
 
-/* DELETE OLD FLIGHTS BUTTON */
 .btn-delete-old {
   background: #F59E0B; color: #000; border: none;
   padding: 10px 18px; border-radius: 25px; font-weight: 600;
@@ -284,6 +274,7 @@ body.dark .theme-toggle:hover { background: rgba(255,255,255,0.1); }
 }
 .form-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 18px; color: var(--purple-dark); }
 .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.form-grid-2 { grid-template-columns: 1fr 1fr; }
 .field label {
   display: block; font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.8px; color: var(--gray-400); margin-bottom: 5px;
@@ -299,7 +290,7 @@ body.dark .theme-toggle:hover { background: rgba(255,255,255,0.1); }
 .btn-save:hover { background: var(--purple-dark); }
 .btn-cancel { background: transparent; border: 1px solid var(--gray-200); padding: 10px 24px; border-radius: 30px; font-weight: 600; cursor: pointer; color: var(--gray-600); font-family: 'Inter', sans-serif; }
 
-#adminFlightsList { display: flex; flex-direction: column; gap: 8px; }
+#adminFlightsListDep, #adminFlightsListArr { display: flex; flex-direction: column; gap: 8px; }
 .admin-row {
   display: flex; justify-content: space-between; align-items: center;
   padding: 14px 18px; background: var(--gray-50);
@@ -377,13 +368,107 @@ td { padding: 18px 22px; font-size: 14px; font-weight: 500; color: var(--gray-80
 .dest-iata { background: var(--purple-bg); color: var(--purple); padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; }
 .flight-num { font-weight: 700; }
 
-.airline-cell { display: flex; align-items: center; gap: 8px; }
-.airline-avatar {
-  width: 30px; height: 30px;
-  background: linear-gradient(135deg, var(--purple-light), var(--purple));
-  border-radius: 8px; display: flex; align-items: center; justify-content: center;
-  color: white; font-size: 11px; font-weight: 700;
+/* ============ ЛОГОТИПЫ АВИАКОМПАНИЙ ============ */
+.airline-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
+
+.airline-logo {
+  width: 28px;
+  height: 28px;
+  max-width: 28px;
+  max-height: 28px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #FFFFFF;
+  padding: 2px;
+  flex-shrink: 0;
+  display: block;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+body.dark .airline-logo {
+  background: #3D3A4E;
+}
+
+.airline-logo-modal {
+  width: 40px;
+  height: 40px;
+  max-width: 40px;
+  max-height: 40px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #FFFFFF;
+  padding: 4px;
+  flex-shrink: 0;
+  display: block;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+body.dark .airline-logo-modal {
+  background: #3D3A4E;
+}
+
+.airline-avatar {
+  width: 28px;
+  height: 28px;
+  max-width: 28px;
+  max-height: 28px;
+  background: linear-gradient(135deg, var(--purple-light), var(--purple));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.airline-avatar-modal {
+  width: 40px;
+  height: 40px;
+  max-width: 40px;
+  max-height: 40px;
+  background: linear-gradient(135deg, var(--purple-light), var(--purple));
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.airline-name {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+/* Жёсткие лимиты для логотипов внутри таблицы */
+.airline-cell img {
+  flex-shrink: 0;
+  width: 28px !important;
+  height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+  object-fit: contain;
+}
+
+/* Жёсткие лимиты для логотипов внутри модалки */
+.modal-flight-airline img {
+  width: 40px !important;
+  height: 40px !important;
+  max-width: 40px !important;
+  max-height: 40px !important;
+  object-fit: contain;
+}
+
 .gate-cell { font-weight: 700; color: var(--purple); }
 
 /* STATUS */
