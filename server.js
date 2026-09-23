@@ -242,11 +242,13 @@ app.delete('/api/old-flights', async (req, res) => {
     return false;
   });
   const toDelete = flights.filter(f => !kept.includes(f));
-  for (const f of toDelete) await deleteOne(f.id, 'departures');
+  for (const f of toDelete) {
+    await deleteOne(f.id, 'departures');
+  }
   res.json({ deleted: toDelete.length, kept: kept.length });
 });
 
-// Авиакомпании
+// ============ API АВИАКОМПАНИЙ ============
 app.get('/api/airlines', async (req, res) => {
   const airlines = await loadAirlines();
   res.json(airlines);
@@ -276,7 +278,7 @@ app.delete('/api/airlines/:id', async (req, res) => {
   res.status(204).send();
 });
 
-// Рейсы
+// ============ API РЕЙСОВ ============
 app.get('/api/flights', async (req, res) => {
   await ensureDailyFlights();
   const type = req.query.type || 'departure';
@@ -304,24 +306,7 @@ app.get('/api/flights', async (req, res) => {
 app.post('/api/flights', async (req, res) => {
   const type = req.query.type || 'departure';
   const table = type === 'departure' ? 'departures' : 'arrivals';
-  const f = {
-    id: Date.now().toString(),
-    flightNumber: req.body.flightNumber || '',
-    destination: req.body.destination || '',
-    iataCode: req.body.iataCode || '',
-    airline: req.body.airline || '',
-    scheduledTime: req.body.scheduledTime || '',
-    scheduledDeparture: req.body.scheduledDeparture || null,
-    expectedDeparture: req.body.expectedDeparture || null,
-    checkInStart: req.body.checkInStart || null,
-    checkInEnd: req.body.checkInEnd || null,
-    checkInCounters: req.body.checkInCounters || '',
-    boardingStart: req.body.boardingStart || null,
-    boardingEnd: req.body.boardingEnd || null,
-    boardingGate: req.body.boardingGate || '',
-    baggageBelt: req.body.baggageBelt || '',
-    status: req.body.status || 'scheduled'
-  };
+  const f = { id: Date.now().toString(), flightNumber: req.body.flightNumber || '', destination: req.body.destination || '', iataCode: req.body.iataCode || '', airline: req.body.airline || '', scheduledTime: req.body.scheduledTime || '', scheduledDeparture: req.body.scheduledDeparture || null, expectedDeparture: req.body.expectedDeparture || null, checkInStart: req.body.checkInStart || null, checkInEnd: req.body.checkInEnd || null, checkInCounters: req.body.checkInCounters || '', boardingStart: req.body.boardingStart || null, boardingEnd: req.body.boardingEnd || null, boardingGate: req.body.boardingGate || '', baggageBelt: req.body.baggageBelt || '', status: req.body.status || 'scheduled' };
   await saveOne(f, table);
   res.status(201).json(f);
 });
@@ -344,7 +329,9 @@ app.delete('/api/flights/:id', async (req, res) => {
   res.status(204).send();
 });
 
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('Симашкино OK'));
