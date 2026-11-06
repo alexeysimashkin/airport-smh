@@ -24,7 +24,6 @@ const DAILY_FLIGHTS = [
   "UT-478|Сургут|SGC|Utair|01:30",
   "AS-9987|Дубай|DXB|ASO Airlines|02:30",
   "6N-344|Тобольск|RMZ|Severavia|03:05",
-  "PC-5723|Анталья|AYT|Pegasus Airlines|04:15",
   "AS-620|Краснодар|KRR|ASO Airlines|06:45",
   "6N-572|Санкт-Петербург|LED|Severavia|07:00",
   "AS-2959|Сочи|AER|ASO Airlines|08:05",
